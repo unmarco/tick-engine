@@ -1,0 +1,21 @@
+[project]
+name = "tick-tween"
+version = "0.1.0"
+description = "Value interpolation for the tick engine"
+requires-python = ">=3.11"
+dependencies = [
+    "tick>=0.2.1",
+]
+
+[tool.uv.sources]
+tick = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["tick_tween"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

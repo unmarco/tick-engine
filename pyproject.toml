@@ -1,0 +1,14 @@
+[project]
+name = "tick-engine"
+version = "0.1.0"
+description = "Minimal tick engine ecosystem"
+requires-python = ">=3.11"
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["packages/*/tests"]
