@@ -220,6 +220,7 @@ source = { editable = "packages/tick-colony" }
 dependencies = [
     { name = "tick" },
     { name = "tick-blueprint" },
+    { name = "tick-event" },
     { name = "tick-fsm" },
     { name = "tick-schedule" },
     { name = "tick-signal" },
@@ -230,6 +231,7 @@ dependencies = [
 requires-dist = [
     { name = "tick", editable = "packages/tick" },
     { name = "tick-blueprint", editable = "packages/tick-blueprint" },
+    { name = "tick-event", editable = "packages/tick-event" },
     { name = "tick-fsm", editable = "packages/tick-fsm" },
     { name = "tick-schedule", editable = "packages/tick-schedule" },
     { name = "tick-signal", editable = "packages/tick-signal" },

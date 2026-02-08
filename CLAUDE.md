@@ -7,7 +7,7 @@ A uv workspace monorepo containing the tick engine and all its extension package
 ## Current Status
 
 - **Version**: 0.3.0
-- **Tests**: 636 passing across all 9 packages
+- **Tests**: 644 passing across all 9 packages
 - **CI**: GitHub Actions (Python 3.11/3.12/3.13 matrix + mypy)
 - **Type checking**: mypy strict mode, all packages pass
 - **Repository**: https://github.com/unmarco/tick-engine
@@ -92,7 +92,7 @@ uv run mypy
 
 ## Dependency Graph
 
-Extensions depend on `tick>=0.2.1`. tick-colony depends on all 5 extension packages.
+Extensions depend on `tick>=0.2.1`. tick-colony depends on all 6 extension packages.
 
 ```
 tick >= 0.2.1
@@ -101,7 +101,8 @@ tick >= 0.2.1
   │     ├── tick-schedule >= 0.1.0
   │     ├── tick-fsm >= 0.1.0
   │     ├── tick-blueprint >= 0.1.0
-  │     └── tick-signal >= 0.1.0
+  │     ├── tick-signal >= 0.1.0
+  │     └── tick-event >= 0.1.0
   ├── tick-schedule
   ├── tick-fsm
   ├── tick-blueprint

@@ -29,6 +29,7 @@ from tick_schedule import Timer, make_timer_system
 from tick_fsm import FSM, FSMGuards, make_fsm_system
 from tick_blueprint import BlueprintRegistry
 from tick_signal import SignalBus
+from tick_event import EventScheduler, EventGuards, EventDef, CycleDef, make_event_system
 
 if TYPE_CHECKING:
     from tick import World

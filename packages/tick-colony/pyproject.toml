@@ -10,6 +10,7 @@ dependencies = [
     "tick-fsm>=0.1.0",
     "tick-blueprint>=0.1.0",
     "tick-signal>=0.1.0",
+    "tick-event>=0.1.0",
 ]
 
 [tool.uv.sources]
@@ -19,6 +20,7 @@ tick-schedule = { workspace = true }
 tick-fsm = { workspace = true }
 tick-blueprint = { workspace = true }
 tick-signal = { workspace = true }
+tick-event = { workspace = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["tick_colony"]
