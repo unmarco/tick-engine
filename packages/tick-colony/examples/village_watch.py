@@ -16,15 +16,18 @@ from tick import Engine, World
 from tick.types import TickContext
 
 from tick_colony import (
-    Position, Action, NeedSet, NeedHelper, StatBlock, Modifiers,
+    Pos2D, NeedSet, NeedHelper, StatBlock, Modifiers,
     Container, ContainedBy,
     Lifecycle, make_lifecycle_system,
-    Grid, EventLog,
-    make_action_system, make_need_decay_system, make_modifier_tick_system,
-    make_grid_cleanup_system,
+    EventLog,
+    make_need_decay_system, make_modifier_tick_system,
     effective, add_modifier, add_to_container, remove_from_container, contents,
     register_colony_components,
 )
+from tick_schedule import Timer, make_timer_system
+from tick_fsm import FSM, FSMGuards, make_fsm_system
+from tick_signal import SignalBus
+from tick_spatial import Grid2D, make_spatial_cleanup_system
 
 
 # ---------------------------------------------------------------------------
@@ -129,13 +132,22 @@ DEFAULT_SCENARIO = VillageScenario(
 # Shared state (initialized in setup_engine from scenario)
 # ---------------------------------------------------------------------------
 
-grid: Grid = None  # type: ignore
+grid: Grid2D = None  # type: ignore
 event_log: EventLog = None  # type: ignore
+bus: SignalBus = None  # type: ignore
 stockpile_eid: int = -1
 scenario: VillageScenario = DEFAULT_SCENARIO
 birth_counter: list[int] = [0]
 death_counter: list[int] = [0]
 peak_population: list[int] = [0]
+
+# FSM transitions table
+TRANSITIONS = {
+    "idle": [["is_hungry", "foraging"], ["is_tired", "resting"], ["always", "working"]],
+    "foraging": [["timer_done", "idle"]],
+    "resting": [["timer_done", "idle"]],
+    "working": [["timer_done", "idle"]],
+}
 
 
 # ---------------------------------------------------------------------------
@@ -169,129 +181,21 @@ def _roman(n: int) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Callbacks
+# FSM Guards
 # ---------------------------------------------------------------------------
 
-def on_action_complete(world: World, ctx: TickContext, eid: int, action: Action) -> None:
-    if not world.alive(eid):
-        return
-    needs = world.get(eid, NeedSet)
-    name = world.get(eid, Colonist).name if world.has(eid, Colonist) else str(eid)
-
-    if action.name == "forage":
-        NeedHelper.set_value(needs, "hunger", NeedHelper.get_value(needs, "hunger") + 30.0)
-        sp = scenario.stockpile_pos
-        grid.move(eid, sp[0], sp[1])
-        food = world.spawn()
-        if world.has(stockpile_eid, Container):
-            add_to_container(world, stockpile_eid, food)
-        event_log.emit(tick=ctx.tick_number, type="forage_done",
-                       colonist=name, food_stored=len(contents(world, stockpile_eid)))
-
-    elif action.name == "rest":
-        NeedHelper.set_value(needs, "fatigue", NeedHelper.get_value(needs, "fatigue") + 40.0)
-        if world.has(eid, Modifiers):
-            add_modifier(world.get(eid, Modifiers), "strength", 2.0, duration=20)
-        event_log.emit(tick=ctx.tick_number, type="rest_done", colonist=name)
-
-    elif action.name == "build":
-        fatigue = NeedHelper.get_value(needs, "fatigue")
-        NeedHelper.set_value(needs, "fatigue", fatigue - 5.0)
-        event_log.emit(tick=ctx.tick_number, type="build_done", colonist=name)
-
-    elif action.name == "craft":
-        hunger = NeedHelper.get_value(needs, "hunger")
-        NeedHelper.set_value(needs, "hunger", hunger - 3.0)
-        item = world.spawn()
-        if world.has(stockpile_eid, Container):
-            add_to_container(world, stockpile_eid, item)
-        event_log.emit(tick=ctx.tick_number, type="craft_done",
-                       colonist=name, stockpile=len(contents(world, stockpile_eid)))
-
-    elif action.name == "patrol":
-        hunger = NeedHelper.get_value(needs, "hunger")
-        fatigue = NeedHelper.get_value(needs, "fatigue")
-        NeedHelper.set_value(needs, "hunger", hunger - 3.0)
-        NeedHelper.set_value(needs, "fatigue", fatigue - 3.0)
-        tx = ctx.random.randint(0, scenario.grid_width - 1)
-        ty = ctx.random.randint(0, scenario.grid_height - 1)
-        grid.move(eid, tx, ty)
-        event_log.emit(tick=ctx.tick_number, type="patrol_done", colonist=name)
-
-    elif action.name == "train":
-        fatigue = NeedHelper.get_value(needs, "fatigue")
-        NeedHelper.set_value(needs, "fatigue", fatigue - 8.0)
-        if world.has(eid, Modifiers):
-            add_modifier(world.get(eid, Modifiers), "speed", 1.5, duration=25)
-        event_log.emit(tick=ctx.tick_number, type="train_done", colonist=name)
-
-
-def on_need_critical(world: World, ctx: TickContext, eid: int, need_name: str) -> None:
-    name = world.get(eid, Colonist).name if world.has(eid, Colonist) else str(eid)
-    event_log.emit(tick=ctx.tick_number, type="need_critical",
-                   colonist=name, need=need_name)
-
-
-def on_need_zero(world: World, ctx: TickContext, eid: int, need_name: str) -> None:
-    name = world.get(eid, Colonist).name if world.has(eid, Colonist) else str(eid)
-    grid.remove(eid)
-    event_log.emit(tick=ctx.tick_number, type="death", colonist=name,
-                   cause=f"{need_name} depleted")
-    death_counter[0] += 1
-    world.despawn(eid)
-
-
-def on_lifecycle_death(world: World, ctx: TickContext, eid: int, cause: str) -> None:
-    name = world.get(eid, Colonist).name if world.has(eid, Colonist) else str(eid)
-    grid.remove(eid)
-    event_log.emit(tick=ctx.tick_number, type="death", colonist=name, cause="old age")
-    death_counter[0] += 1
+def make_guards() -> FSMGuards:
+    guards = FSMGuards()
+    guards.register("is_hungry", lambda w, eid: NeedHelper.get_value(w.get(eid, NeedSet), "hunger") < scenario.hunger_threshold)
+    guards.register("is_tired", lambda w, eid: NeedHelper.get_value(w.get(eid, NeedSet), "fatigue") < scenario.fatigue_threshold)
+    guards.register("timer_done", lambda w, eid: not w.has(eid, Timer))
+    guards.register("always", lambda w, eid: True)
+    return guards
 
 
 # ---------------------------------------------------------------------------
-# Decision system
+# FSM Transition Callback
 # ---------------------------------------------------------------------------
-
-def decision_system(world: World, ctx: TickContext) -> None:
-    for eid, (colonist, needs, stats) in world.query(Colonist, NeedSet, StatBlock):
-        if world.has(eid, Action):
-            continue
-
-        hunger = NeedHelper.get_value(needs, "hunger")
-        fatigue = NeedHelper.get_value(needs, "fatigue")
-        mods = world.get(eid, Modifiers) if world.has(eid, Modifiers) else Modifiers(entries=[])
-        speed = effective(stats, mods, "speed")
-        strength = effective(stats, mods, "strength")
-
-        if hunger < scenario.hunger_threshold:
-            tx = ctx.random.randint(0, scenario.grid_width - 1)
-            ty = ctx.random.choice([0, scenario.grid_height - 1])
-            _move_toward(eid, tx, ty, speed, ctx)
-            world.attach(eid, Action(name="forage", total_ticks=scenario.forage_ticks))
-            event_log.emit(tick=ctx.tick_number, type="decision",
-                           colonist=colonist.name, action="forage",
-                           reason=f"hunger low ({hunger:.0f})")
-        elif fatigue < scenario.fatigue_threshold:
-            sp = scenario.stockpile_pos
-            _move_toward(eid, sp[0], sp[1], speed, ctx)
-            world.attach(eid, Action(name="rest", total_ticks=scenario.rest_ticks))
-            event_log.emit(tick=ctx.tick_number, type="decision",
-                           colonist=colonist.name, action="rest",
-                           reason=f"fatigue low ({fatigue:.0f})")
-        else:
-            activities = scenario.activities
-            weights = [
-                a["str_w"] * strength + a["spd_w"] * speed
-                for a in activities
-            ]
-            chosen = ctx.random.choices(activities, weights=weights, k=1)[0]
-            stat_val = effective(stats, mods, chosen["stat"])
-            duration = max(chosen["base_ticks"] - 4, chosen["base_ticks"] - int(stat_val))
-            world.attach(eid, Action(name=chosen["name"], total_ticks=duration))
-            event_log.emit(tick=ctx.tick_number, type="decision",
-                           colonist=colonist.name, action=chosen["name"],
-                           reason=f"chose {chosen['name']} (str {strength:.0f}, spd {speed:.0f})")
-
 
 def _move_toward(eid: int, tx: int, ty: int, speed: float, ctx: TickContext) -> None:
     pos = grid.position_of(eid)
@@ -306,8 +210,123 @@ def _move_toward(eid: int, tx: int, ty: int, speed: float, ctx: TickContext) -> 
         nx = max(0, min(scenario.grid_width - 1, nx))
         ny = max(0, min(scenario.grid_height - 1, ny))
         if (nx, ny) != (x, y):
-            grid.move(eid, nx, ny)
+            grid.move(eid, (nx, ny))
             x, y = nx, ny
+
+
+def on_transition(world: World, ctx: TickContext, eid: int, old_state: str, new_state: str) -> None:
+    if not world.alive(eid):
+        return
+    stats = world.get(eid, StatBlock)
+    mods = world.get(eid, Modifiers) if world.has(eid, Modifiers) else Modifiers(entries=[])
+    speed = effective(stats, mods, "speed")
+    strength = effective(stats, mods, "strength")
+    colonist = world.get(eid, Colonist) if world.has(eid, Colonist) else None
+    col_name = colonist.name if colonist else str(eid)
+
+    if new_state == "foraging":
+        tx = ctx.random.randint(0, scenario.grid_width - 1)
+        ty = ctx.random.choice([0, scenario.grid_height - 1])
+        _move_toward(eid, tx, ty, speed, ctx)
+        world.attach(eid, Timer(name="forage", remaining=scenario.forage_ticks))
+        needs = world.get(eid, NeedSet)
+        bus.publish("decision", tick=ctx.tick_number, colonist=col_name,
+                    action="forage", reason=f"hunger low ({NeedHelper.get_value(needs, 'hunger'):.0f})")
+    elif new_state == "resting":
+        sp = scenario.stockpile_pos
+        _move_toward(eid, sp[0], sp[1], speed, ctx)
+        world.attach(eid, Timer(name="rest", remaining=scenario.rest_ticks))
+        needs = world.get(eid, NeedSet)
+        bus.publish("decision", tick=ctx.tick_number, colonist=col_name,
+                    action="rest", reason=f"fatigue low ({NeedHelper.get_value(needs, 'fatigue'):.0f})")
+    elif new_state == "working":
+        # Weighted random activity selection (same logic as before)
+        activities = scenario.activities
+        weights = [a["str_w"] * strength + a["spd_w"] * speed for a in activities]
+        chosen = ctx.random.choices(activities, weights=weights, k=1)[0]
+        stat_val = effective(stats, mods, chosen["stat"])
+        duration = max(chosen["base_ticks"] - 4, chosen["base_ticks"] - int(stat_val))
+        world.attach(eid, Timer(name=chosen["name"], remaining=duration))
+        bus.publish("decision", tick=ctx.tick_number, colonist=col_name,
+                    action=chosen["name"],
+                    reason=f"chose {chosen['name']} (str {strength:.0f}, spd {speed:.0f})")
+
+
+# ---------------------------------------------------------------------------
+# Timer Callback
+# ---------------------------------------------------------------------------
+
+def on_timer_fire(world: World, ctx: TickContext, eid: int, timer: Timer) -> None:
+    if not world.alive(eid):
+        return
+    needs = world.get(eid, NeedSet)
+    name = world.get(eid, Colonist).name if world.has(eid, Colonist) else str(eid)
+
+    if timer.name == "forage":
+        NeedHelper.set_value(needs, "hunger", NeedHelper.get_value(needs, "hunger") + 30.0)
+        sp = scenario.stockpile_pos
+        grid.move(eid, (sp[0], sp[1]))
+        food = world.spawn()
+        if world.has(stockpile_eid, Container):
+            add_to_container(world, stockpile_eid, food)
+        bus.publish("forage_done", tick=ctx.tick_number, colonist=name,
+                    food_stored=len(contents(world, stockpile_eid)))
+    elif timer.name == "rest":
+        NeedHelper.set_value(needs, "fatigue", NeedHelper.get_value(needs, "fatigue") + 40.0)
+        if world.has(eid, Modifiers):
+            add_modifier(world.get(eid, Modifiers), "strength", 2.0, duration=20)
+        bus.publish("rest_done", tick=ctx.tick_number, colonist=name)
+    elif timer.name == "build":
+        fatigue = NeedHelper.get_value(needs, "fatigue")
+        NeedHelper.set_value(needs, "fatigue", fatigue - 5.0)
+        bus.publish("build_done", tick=ctx.tick_number, colonist=name)
+    elif timer.name == "craft":
+        hunger = NeedHelper.get_value(needs, "hunger")
+        NeedHelper.set_value(needs, "hunger", hunger - 3.0)
+        item = world.spawn()
+        if world.has(stockpile_eid, Container):
+            add_to_container(world, stockpile_eid, item)
+        bus.publish("craft_done", tick=ctx.tick_number, colonist=name,
+                    stockpile=len(contents(world, stockpile_eid)))
+    elif timer.name == "patrol":
+        hunger = NeedHelper.get_value(needs, "hunger")
+        fatigue = NeedHelper.get_value(needs, "fatigue")
+        NeedHelper.set_value(needs, "hunger", hunger - 3.0)
+        NeedHelper.set_value(needs, "fatigue", fatigue - 3.0)
+        tx = ctx.random.randint(0, scenario.grid_width - 1)
+        ty = ctx.random.randint(0, scenario.grid_height - 1)
+        grid.move(eid, (tx, ty))
+        bus.publish("patrol_done", tick=ctx.tick_number, colonist=name)
+    elif timer.name == "train":
+        fatigue = NeedHelper.get_value(needs, "fatigue")
+        NeedHelper.set_value(needs, "fatigue", fatigue - 8.0)
+        if world.has(eid, Modifiers):
+            add_modifier(world.get(eid, Modifiers), "speed", 1.5, duration=25)
+        bus.publish("train_done", tick=ctx.tick_number, colonist=name)
+
+
+# ---------------------------------------------------------------------------
+# Need Callbacks
+# ---------------------------------------------------------------------------
+
+def on_need_critical(world: World, ctx: TickContext, eid: int, need_name: str) -> None:
+    name = world.get(eid, Colonist).name if world.has(eid, Colonist) else str(eid)
+    bus.publish("need_critical", tick=ctx.tick_number, colonist=name, need=need_name)
+
+
+def on_need_zero(world: World, ctx: TickContext, eid: int, need_name: str) -> None:
+    name = world.get(eid, Colonist).name if world.has(eid, Colonist) else str(eid)
+    grid.remove(eid)
+    bus.publish("death", tick=ctx.tick_number, colonist=name, cause=f"{need_name} depleted")
+    death_counter[0] += 1
+    world.despawn(eid)
+
+
+def on_lifecycle_death(world: World, ctx: TickContext, eid: int, cause: str) -> None:
+    name = world.get(eid, Colonist).name if world.has(eid, Colonist) else str(eid)
+    grid.remove(eid)
+    bus.publish("death", tick=ctx.tick_number, colonist=name, cause="old age")
+    death_counter[0] += 1
 
 
 # ---------------------------------------------------------------------------
@@ -364,8 +383,8 @@ def _spawn_colonist(world: World, ctx: TickContext) -> None:
     sp = scenario.stockpile_pos
     x = max(0, min(scenario.grid_width - 1, sp[0] + ctx.random.randint(-2, 2)))
     y = max(0, min(scenario.grid_height - 1, sp[1] + ctx.random.randint(-2, 2)))
-    world.attach(eid, Position(x=x, y=y))
-    grid.place(eid, x, y)
+    world.attach(eid, Pos2D(x=float(x), y=float(y)))
+    grid.place(eid, (x, y))
 
     # Needs at max
     needs = NeedSet(data={})
@@ -382,6 +401,9 @@ def _spawn_colonist(world: World, ctx: TickContext) -> None:
     world.attach(eid, StatBlock(data=stats_data))
     world.attach(eid, Modifiers(entries=[]))
 
+    # FSM
+    world.attach(eid, FSM(state="idle", transitions=TRANSITIONS))
+
     # Lifecycle
     if scenario.max_age_min > 0 and scenario.max_age_max > 0:
         max_age = ctx.random.randint(scenario.max_age_min, scenario.max_age_max)
@@ -389,17 +411,26 @@ def _spawn_colonist(world: World, ctx: TickContext) -> None:
         max_age = -1
     world.attach(eid, Lifecycle(born_tick=ctx.tick_number, max_age=max_age))
 
-    event_log.emit(tick=ctx.tick_number, type="birth", colonist=name)
+    bus.publish("birth", tick=ctx.tick_number, colonist=name)
+
+
+# ---------------------------------------------------------------------------
+# Signal System
+# ---------------------------------------------------------------------------
+
+def record_signal(signal_name: str, data: dict) -> None:
+    tick = data.get("tick", 0)
+    rest = {k: v for k, v in data.items() if k != "tick"}
+    event_log.emit(tick=tick, type=signal_name, **rest)
+
+
+def flush_signals(world: World, ctx: TickContext) -> None:
+    bus.flush()
 
 
 # ---------------------------------------------------------------------------
 # Report helpers
 # ---------------------------------------------------------------------------
-
-def progress_bar(elapsed: int, total: int, width: int = 10) -> str:
-    filled = round(width * elapsed / total) if total > 0 else 0
-    return "[" + "#" * filled + "-" * (width - filled) + "]"
-
 
 def narrate_event(event) -> str:
     d = event.data
@@ -435,7 +466,7 @@ def format_elapsed(seconds: float) -> str:
 
 
 def print_report(world: World, tick: int, event_log: EventLog,
-                 grid: Grid, stockpile_eid: int, dt: float) -> None:
+                 grid: Grid2D, stockpile_eid: int, dt: float) -> None:
     elapsed = tick * dt
     print(f"\n=== TICK {tick} === (elapsed: {format_elapsed(elapsed)})\n")
 
@@ -445,10 +476,9 @@ def print_report(world: World, tick: int, event_log: EventLog,
         pos = grid.position_of(eid)
         pos_str = f"({pos[0]:>2},{pos[1]:>2})" if pos else "(?,?)"
 
-        if world.has(eid, Action):
-            action = world.get(eid, Action)
-            bar = progress_bar(action.elapsed_ticks, action.total_ticks)
-            action_str = f"{action.name:<10}{bar} {action.elapsed_ticks}/{action.total_ticks}"
+        if world.has(eid, Timer):
+            timer = world.get(eid, Timer)
+            action_str = f"{timer.name:<10}remaining: {timer.remaining}"
         else:
             action_str = "idle"
 
@@ -493,7 +523,7 @@ def print_report(world: World, tick: int, event_log: EventLog,
 
 
 def print_summary(world: World, engine: Engine, event_log: EventLog,
-                  grid: Grid, stockpile_eid: int) -> None:
+                  grid: Grid2D, stockpile_eid: int) -> None:
     tick = engine.clock.tick_number
     pop = sum(1 for _ in world.query(Colonist, NeedSet))
     births = birth_counter[0]
@@ -524,14 +554,20 @@ def print_summary(world: World, engine: Engine, event_log: EventLog,
 # ---------------------------------------------------------------------------
 
 def setup_engine(scn: VillageScenario, seed: int = 42) -> Engine:
-    global stockpile_eid, grid, event_log, scenario, birth_counter, death_counter, peak_population
+    global stockpile_eid, grid, event_log, bus, scenario, birth_counter, death_counter, peak_population
 
     scenario = scn
-    grid = Grid(scn.grid_width, scn.grid_height)
+    grid = Grid2D(scn.grid_width, scn.grid_height)
     event_log = EventLog(max_entries=scn.event_log_capacity)
+    bus = SignalBus()
     birth_counter = [0]
     death_counter = [0]
     peak_population = [len(scn.initial_names)]
+
+    # Subscribe all signal types to record_signal
+    for signal in ["forage_done", "rest_done", "build_done", "craft_done",
+                   "patrol_done", "train_done", "need_critical", "death", "birth", "decision"]:
+        bus.subscribe(signal, record_signal)
 
     engine = Engine(tps=scn.tps, seed=seed)
     w = engine.world
@@ -540,9 +576,10 @@ def setup_engine(scn: VillageScenario, seed: int = 42) -> Engine:
 
     # Stockpile
     stockpile_eid = w.spawn()
-    w.attach(stockpile_eid, Position(x=scn.stockpile_pos[0], y=scn.stockpile_pos[1]))
+    sp = scn.stockpile_pos
+    w.attach(stockpile_eid, Pos2D(x=float(sp[0]), y=float(sp[1])))
     w.attach(stockpile_eid, Container(items=[], capacity=scn.stockpile_capacity))
-    grid.place(stockpile_eid, scn.stockpile_pos[0], scn.stockpile_pos[1])
+    grid.place(stockpile_eid, (sp[0], sp[1]))
 
     # Colonists -- staggered initial values for variety
     for i, name in enumerate(scn.initial_names):
@@ -550,8 +587,8 @@ def setup_engine(scn: VillageScenario, seed: int = 42) -> Engine:
         w.attach(eid, Colonist(name=name))
         x = 2 + (i * 3) % (scn.grid_width - 4)
         y = 2 + (i * 5) % (scn.grid_height - 4)
-        w.attach(eid, Position(x=x, y=y))
-        grid.place(eid, x, y)
+        w.attach(eid, Pos2D(x=float(x), y=float(y)))
+        grid.place(eid, (x, y))
 
         needs = NeedSet(data={})
         for j, nd in enumerate(scn.needs):
@@ -574,6 +611,9 @@ def setup_engine(scn: VillageScenario, seed: int = 42) -> Engine:
         w.attach(eid, StatBlock(data=stats_data))
         w.attach(eid, Modifiers(entries=[]))
 
+        # FSM
+        w.attach(eid, FSM(state="idle", transitions=TRANSITIONS))
+
         # Lifecycle
         if scn.max_age_min > 0 and scn.max_age_max > 0:
             # Use a deterministic spread for initial colonists
@@ -584,13 +624,15 @@ def setup_engine(scn: VillageScenario, seed: int = 42) -> Engine:
         w.attach(eid, Lifecycle(born_tick=0, max_age=max_age))
 
     # Systems in order
-    engine.add_system(decision_system)
+    guards = make_guards()
+    engine.add_system(make_timer_system(on_fire=on_timer_fire))
+    engine.add_system(make_fsm_system(guards, on_transition=on_transition))
     engine.add_system(birth_system)
-    engine.add_system(make_action_system(on_complete=on_action_complete))
     engine.add_system(make_need_decay_system(on_critical=on_need_critical, on_zero=on_need_zero))
     engine.add_system(make_lifecycle_system(on_death=on_lifecycle_death))
     engine.add_system(make_modifier_tick_system())
-    engine.add_system(make_grid_cleanup_system(grid))
+    engine.add_system(make_spatial_cleanup_system(grid))
+    engine.add_system(flush_signals)
 
     return engine
 

@@ -2,7 +2,7 @@
 
 import json
 import pytest
-from tick_colony import Grid, Position, EventLog, ColonySnapshot
+from tick_colony import Grid2D, Pos2D, EventLog, ColonySnapshot
 from tick import Engine
 
 
@@ -11,11 +11,11 @@ class TestColonySnapshot:
         engine = Engine(tps=20, seed=42)
         world = engine.world
 
-        grid = Grid(30, 20)
+        grid = Grid2D(30, 20)
         snapper = ColonySnapshot(grid=grid)
 
         e1 = world.spawn()
-        world.attach(e1, Position(x=5, y=10))
+        world.attach(e1, Pos2D(x=5.0, y=10.0))
         grid.rebuild(world)
 
         snapshot = snapper.snapshot(engine)
@@ -44,14 +44,14 @@ class TestColonySnapshot:
         engine = Engine(tps=20, seed=42)
         world = engine.world
 
-        grid = Grid(40, 30)
+        grid = Grid2D(40, 30)
         event_log = EventLog()
         event_log.emit(tick=1, type="test", data=123)
 
         snapper = ColonySnapshot(grid=grid, event_log=event_log)
 
         e1 = world.spawn()
-        world.attach(e1, Position(x=10, y=15))
+        world.attach(e1, Pos2D(x=10.0, y=15.0))
         grid.rebuild(world)
 
         snapshot = snapper.snapshot(engine)
@@ -63,7 +63,7 @@ class TestColonySnapshot:
 
     def test_snapshot_includes_engine_snapshot(self):
         engine = Engine(tps=20, seed=42)
-        grid = Grid(10, 10)
+        grid = Grid2D(10, 10)
         snapper = ColonySnapshot(grid=grid)
 
         snapshot = snapper.snapshot(engine)
@@ -79,14 +79,14 @@ class TestColonySnapshot:
         engine = Engine(tps=20, seed=42)
         world = engine.world
 
-        grid = Grid(10, 10)
+        grid = Grid2D(10, 10)
         event_log = EventLog()
         event_log.emit(tick=1, type="test", value=42)
 
         snapper = ColonySnapshot(grid=grid, event_log=event_log)
 
         e1 = world.spawn()
-        world.attach(e1, Position(x=5, y=5))
+        world.attach(e1, Pos2D(x=5.0, y=5.0))
         grid.rebuild(world)
 
         snapshot = snapper.snapshot(engine)
@@ -99,21 +99,21 @@ class TestColonySnapshot:
         engine = Engine(tps=20, seed=42)
         world = engine.world
 
-        grid = Grid(20, 20)
+        grid = Grid2D(20, 20)
         snapper = ColonySnapshot(grid=grid)
 
         # Create entities with positions
         e1 = world.spawn()
         e2 = world.spawn()
-        world.attach(e1, Position(x=5, y=7))
-        world.attach(e2, Position(x=10, y=12))
+        world.attach(e1, Pos2D(x=5.0, y=7.0))
+        world.attach(e2, Pos2D(x=10.0, y=12.0))
 
         # Take snapshot
         snapshot = snapper.snapshot(engine)
 
         # Create new engine and grid
         engine2 = Engine(tps=20, seed=42)
-        grid2 = Grid(20, 20)
+        grid2 = Grid2D(20, 20)
         snapper2 = ColonySnapshot(grid=grid2)
 
         # Restore
@@ -153,15 +153,15 @@ class TestColonySnapshot:
         engine1 = Engine(tps=20, seed=42)
         world1 = engine1.world
 
-        grid1 = Grid(15, 15)
+        grid1 = Grid2D(15, 15)
         event_log1 = EventLog()
         snapper1 = ColonySnapshot(grid=grid1, event_log=event_log1)
 
         # Create some state
         e1 = world1.spawn()
         e2 = world1.spawn()
-        world1.attach(e1, Position(x=3, y=4))
-        world1.attach(e2, Position(x=7, y=9))
+        world1.attach(e1, Pos2D(x=3.0, y=4.0))
+        world1.attach(e2, Pos2D(x=7.0, y=9.0))
         grid1.rebuild(world1)
 
         event_log1.emit(tick=1, type="spawn", entity_id=e1)
@@ -172,7 +172,7 @@ class TestColonySnapshot:
 
         # Restore to new engine
         engine2 = Engine(tps=20, seed=42)
-        grid2 = Grid(15, 15)
+        grid2 = Grid2D(15, 15)
         event_log2 = EventLog()
         snapper2 = ColonySnapshot(grid=grid2, event_log=event_log2)
 
@@ -183,10 +183,10 @@ class TestColonySnapshot:
         assert world2.alive(e1)
         assert world2.alive(e2)
 
-        pos1 = world2.get(e1, Position)
-        pos2 = world2.get(e2, Position)
-        assert (pos1.x, pos1.y) == (3, 4)
-        assert (pos2.x, pos2.y) == (7, 9)
+        pos1 = world2.get(e1, Pos2D)
+        pos2 = world2.get(e2, Pos2D)
+        assert (pos1.x, pos1.y) == (3.0, 4.0)
+        assert (pos2.x, pos2.y) == (7.0, 9.0)
 
         assert grid2.position_of(e1) == (3, 4)
         assert grid2.position_of(e2) == (7, 9)
@@ -226,17 +226,17 @@ class TestColonySnapshot:
         engine1 = Engine(tps=20, seed=42)
         world1 = engine1.world
 
-        grid1 = Grid(10, 10)
+        grid1 = Grid2D(10, 10)
         snapper1 = ColonySnapshot(grid=grid1)
 
         e1 = world1.spawn()
-        world1.attach(e1, Position(x=2, y=3))
+        world1.attach(e1, Pos2D(x=2.0, y=3.0))
         grid1.rebuild(world1)
 
         snapshot = snapper1.snapshot(engine1)
 
         engine2 = Engine(tps=20, seed=42)
-        grid2 = Grid(10, 10)
+        grid2 = Grid2D(10, 10)
         snapper2 = ColonySnapshot(grid=grid2)
 
         snapper2.restore(engine2, snapshot)
@@ -248,13 +248,13 @@ class TestColonySnapshot:
         engine = Engine(tps=20, seed=42)
         world = engine.world
 
-        grid = Grid(10, 10)
+        grid = Grid2D(10, 10)
         event_log = EventLog()
         snapper = ColonySnapshot(grid=grid, event_log=event_log)
 
         # Setup state
         e1 = world.spawn()
-        world.attach(e1, Position(x=5, y=5))
+        world.attach(e1, Pos2D(x=5.0, y=5.0))
         grid.rebuild(world)
         event_log.emit(tick=1, type="test", entity_id=e1)
 
@@ -263,7 +263,7 @@ class TestColonySnapshot:
 
         # Engine should be able to restore its portion
         engine2 = Engine(tps=20, seed=42)
-        grid2 = Grid(10, 10)
+        grid2 = Grid2D(10, 10)
         event_log2 = EventLog()
         snapper2 = ColonySnapshot(grid=grid2, event_log=event_log2)
 

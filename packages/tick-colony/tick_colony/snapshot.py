@@ -5,19 +5,20 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from tick import Engine
 
-from tick_colony.actions import Action
+from tick_spatial import Pos2D, Grid2D
+from tick_schedule import Timer
+from tick_fsm import FSM
 from tick_colony.containment import Container, ContainedBy
 from tick_colony.events import EventLog
-from tick_colony.grid import Grid, Position
 from tick_colony.lifecycle import Lifecycle
 from tick_colony.needs import NeedSet
 from tick_colony.stats import Modifiers, StatBlock
 
-_COLONY_COMPONENTS = (Position, Action, NeedSet, StatBlock, Modifiers, Container, ContainedBy, Lifecycle)
+_COLONY_COMPONENTS = (Pos2D, Timer, FSM, NeedSet, StatBlock, Modifiers, Container, ContainedBy, Lifecycle)
 
 
 class ColonySnapshot:
-    def __init__(self, grid: Grid | None = None,
+    def __init__(self, grid: Grid2D | None = None,
                  event_log: EventLog | None = None) -> None:
         self._grid = grid
         self._event_log = event_log
