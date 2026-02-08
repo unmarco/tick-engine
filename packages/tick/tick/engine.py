@@ -127,7 +127,7 @@ class Engine:
         self._world.restore(data["world"])
 
 
-def _serialize_rng_state(state: tuple) -> list:
+def _serialize_rng_state(state: tuple[int, tuple[int, ...], float | None]) -> list[Any]:
     """Convert Random.getstate() tuple to JSON-compatible list.
 
     The state format (version, internalstate, gauss_next) is the
@@ -138,7 +138,7 @@ def _serialize_rng_state(state: tuple) -> list:
     return [version, list(internalstate), gauss_next]
 
 
-def _deserialize_rng_state(data: list) -> tuple:
+def _deserialize_rng_state(data: list[Any]) -> tuple[int, tuple[int, ...], float | None]:
     """Convert JSON list back to Random.setstate() tuple."""
     version, internalstate, gauss_next = data
     return (version, tuple(internalstate), gauss_next)

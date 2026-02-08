@@ -1,18 +1,28 @@
-"""Grid2D - 2D integer grid with Chebyshev distance."""
+"""Grid3D - 3D integer grid with Chebyshev distance."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from tick_spatial.types import Coord, Pos2D
+from tick_spatial.types import Coord, Pos3D
 
 if TYPE_CHECKING:
     from tick import World
 
+# 26 directions: all (dx, dy, dz) where at least one is nonzero, each in {-1, 0, 1}
+_DIRS_3D = [
+    (dx, dy, dz)
+    for dx in (-1, 0, 1)
+    for dy in (-1, 0, 1)
+    for dz in (-1, 0, 1)
+    if (dx, dy, dz) != (0, 0, 0)
+]
 
-class Grid2D:
-    def __init__(self, width: int, height: int) -> None:
+
+class Grid3D:
+    def __init__(self, width: int, height: int, depth: int) -> None:
         self._width = width
         self._height = height
+        self._depth = depth
         self._cells: dict[Coord, set[int]] = {}
         self._entities: dict[int, Coord] = {}
 
@@ -24,11 +34,16 @@ class Grid2D:
     def height(self) -> int:
         return self._height
 
+    @property
+    def depth(self) -> int:
+        return self._depth
+
     def _check_bounds(self, coord: Coord) -> None:
-        x, y = coord
-        if not (0 <= x < self._width and 0 <= y < self._height):
+        x, y, z = coord
+        if not (0 <= x < self._width and 0 <= y < self._height and 0 <= z < self._depth):
             raise ValueError(
-                f"{coord} out of bounds for {self._width}x{self._height} grid"
+                f"{coord} out of bounds for "
+                f"{self._width}x{self._height}x{self._depth} grid"
             )
 
     def place(self, eid: int, coord: Coord) -> None:
@@ -68,31 +83,27 @@ class Grid2D:
         return self._entities.get(eid)
 
     def in_radius(self, coord: Coord, r: int) -> list[tuple[int, Coord]]:
-        x, y = coord
+        x, y, z = coord
         result: list[tuple[int, Coord]] = []
         for ex in range(max(0, x - r), min(self._width, x + r + 1)):
             for ey in range(max(0, y - r), min(self._height, y + r + 1)):
-                if max(abs(ex - x), abs(ey - y)) <= r:
-                    for eid in self._cells.get((ex, ey), ()):
-                        result.append((eid, (ex, ey)))
+                for ez in range(max(0, z - r), min(self._depth, z + r + 1)):
+                    if max(abs(ex - x), abs(ey - y), abs(ez - z)) <= r:
+                        for eid in self._cells.get((ex, ey, ez), ()):
+                            result.append((eid, (ex, ey, ez)))
         return result
 
     def neighbors(self, coord: Coord) -> list[Coord]:
-        x, y = coord
-        dirs = [
-            (-1, -1), (-1, 0), (-1, 1),
-            (0, -1),           (0, 1),
-            (1, -1),  (1, 0),  (1, 1),
-        ]
+        x, y, z = coord
         result: list[Coord] = []
-        for dx, dy in dirs:
-            nx, ny = x + dx, y + dy
-            if 0 <= nx < self._width and 0 <= ny < self._height:
-                result.append((nx, ny))
+        for dx, dy, dz in _DIRS_3D:
+            nx, ny, nz = x + dx, y + dy, z + dz
+            if 0 <= nx < self._width and 0 <= ny < self._height and 0 <= nz < self._depth:
+                result.append((nx, ny, nz))
         return result
 
     def heuristic(self, a: Coord, b: Coord) -> float:
-        return float(max(abs(a[0] - b[0]), abs(a[1] - b[1])))
+        return float(max(abs(a[0] - b[0]), abs(a[1] - b[1]), abs(a[2] - b[2])))
 
     def tracked_entities(self) -> frozenset[int]:
         return frozenset(self._entities)
@@ -100,7 +111,7 @@ class Grid2D:
     def rebuild(self, world: World) -> None:
         self._cells.clear()
         self._entities.clear()
-        for eid, (pos,) in world.query(Pos2D):
-            x, y = int(pos.x), int(pos.y)
-            if 0 <= x < self._width and 0 <= y < self._height:
-                self.place(eid, (x, y))
+        for eid, (pos,) in world.query(Pos3D):
+            x, y, z = int(pos.x), int(pos.y), int(pos.z)
+            if 0 <= x < self._width and 0 <= y < self._height and 0 <= z < self._depth:
+                self.place(eid, (x, y, z))

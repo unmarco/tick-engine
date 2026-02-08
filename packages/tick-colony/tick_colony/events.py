@@ -38,10 +38,10 @@ class EventLog:
                 return e
         return None
 
-    def snapshot(self) -> list[dict]:
+    def snapshot(self) -> list[dict[str, Any]]:
         return [{"tick": e.tick, "type": e.type, "data": e.data} for e in self._events]
 
-    def restore(self, data: list[dict]) -> None:
+    def restore(self, data: list[dict[str, Any]]) -> None:
         self._events.clear()
         for d in data:
             self._events.append(Event(tick=d["tick"], type=d["type"], data=d["data"]))

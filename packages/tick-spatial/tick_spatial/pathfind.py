@@ -4,26 +4,28 @@ from __future__ import annotations
 import heapq
 from typing import TYPE_CHECKING, Callable
 
+from tick_spatial.types import Coord
+
 if TYPE_CHECKING:
     from tick_spatial.types import SpatialIndex
 
 
 def pathfind(
     index: SpatialIndex,
-    start: tuple[int, int],
-    goal: tuple[int, int],
-    cost: Callable[[tuple[int, int], tuple[int, int]], float] | None = None,
-    walkable: Callable[[tuple[int, int]], bool] | None = None,
-) -> list[tuple[int, int]] | None:
+    start: Coord,
+    goal: Coord,
+    cost: Callable[[Coord, Coord], float] | None = None,
+    walkable: Callable[[Coord], bool] | None = None,
+) -> list[Coord] | None:
     if walkable is not None and (not walkable(start) or not walkable(goal)):
         return None
 
-    open_set: list[tuple[float, int, tuple[int, int]]] = [(0.0, 0, start)]
-    came_from: dict[tuple[int, int], tuple[int, int]] = {}
-    g_score: dict[tuple[int, int], float] = {start: 0.0}
+    open_set: list[tuple[float, int, Coord]] = [(0.0, 0, start)]
+    came_from: dict[Coord, Coord] = {}
+    g_score: dict[Coord, float] = {start: 0.0}
     counter = 1
 
-    closed: set[tuple[int, int]] = set()
+    closed: set[Coord] = set()
 
     while open_set:
         _, _, current = heapq.heappop(open_set)
@@ -31,14 +33,14 @@ def pathfind(
             continue
         closed.add(current)
         if current == goal:
-            path: list[tuple[int, int]] = [current]
+            path: list[Coord] = [current]
             while current in came_from:
                 current = came_from[current]
                 path.append(current)
             path.reverse()
             return path
 
-        for neighbor in index.neighbors(*current):
+        for neighbor in index.neighbors(current):
             if walkable is not None and not walkable(neighbor):
                 continue
             step_cost = cost(current, neighbor) if cost is not None else 1.0

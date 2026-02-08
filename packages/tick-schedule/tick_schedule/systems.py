@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 def make_timer_system(
     on_fire: Callable[[World, TickContext, int, Timer], None],
-) -> Callable:
+) -> Callable[[World, TickContext], None]:
     """Return a system that decrements Timers and fires callbacks at zero."""
 
     def timer_system(world: World, ctx: TickContext) -> None:
@@ -26,7 +26,7 @@ def make_timer_system(
 
 def make_periodic_system(
     on_fire: Callable[[World, TickContext, int, Periodic], None],
-) -> Callable:
+) -> Callable[[World, TickContext], None]:
     """Return a system that increments Periodic elapsed and fires on interval."""
 
     def periodic_system(world: World, ctx: TickContext) -> None:
