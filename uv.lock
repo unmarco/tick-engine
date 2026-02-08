@@ -227,7 +227,7 @@ requires-dist = [{ name = "tick", editable = "packages/tick" }]
 
 [[package]]
 name = "tick-colony"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "packages/tick-colony" }
 dependencies = [
     { name = "tick" },
@@ -252,7 +252,7 @@ requires-dist = [
 
 [[package]]
 name = "tick-engine"
-version = "0.4.0"
+version = "0.4.1"
 source = { virtual = "." }
 
 [package.dev-dependencies]
