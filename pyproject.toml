@@ -28,5 +28,6 @@ packages = [
     "tick_signal",
     "tick_tween",
     "tick_spatial",
+    "tick_event",
 ]
 exclude = ["tests/", "examples/"]
