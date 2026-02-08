@@ -4,6 +4,12 @@
 
 A uv workspace monorepo containing the tick engine and all its extension packages. The tick engine is a minimal, general-purpose tick engine in Python — the skeleton of a game loop stripped of everything game-specific.
 
+## Current Status
+
+- **Version**: 0.1.1
+- **Tests**: 574 passing across all 8 packages
+- **Repository**: https://github.com/unmarco/tick-engine
+
 ## Workspace Structure
 
 ```
