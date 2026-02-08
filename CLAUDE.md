@@ -6,8 +6,10 @@ A uv workspace monorepo containing the tick engine and all its extension package
 
 ## Current Status
 
-- **Version**: 0.1.1
-- **Tests**: 574 passing across all 8 packages
+- **Version**: 0.2.0
+- **Tests**: 604 passing across all 8 packages
+- **CI**: GitHub Actions (Python 3.11/3.12/3.13 matrix + mypy)
+- **Type checking**: mypy strict mode, all packages pass
 - **Repository**: https://github.com/unmarco/tick-engine
 
 ## Workspace Structure
@@ -16,6 +18,7 @@ A uv workspace monorepo containing the tick engine and all its extension package
 tick-engine/
 ├── pyproject.toml              # workspace root (virtual, not a package)
 ├── uv.lock                     # single lockfile (committed)
+├── .github/workflows/test.yml  # CI pipeline
 ├── packages/
 │   ├── tick/                   # core engine
 │   ├── tick-colony/            # colony builder primitives
@@ -38,7 +41,15 @@ tick-engine/
 | tick-blueprint | `tick_blueprint` | 0.1.0 | Entity template registry |
 | tick-signal | `tick_signal` | 0.1.0 | In-process pub/sub event bus |
 | tick-tween | `tick_tween` | 0.1.0 | Value interpolation with easing |
-| tick-spatial | `tick_spatial` | 0.1.0 | Grid2D, HexGrid, A* pathfinding |
+| tick-spatial | `tick_spatial` | 0.2.0 | Grid2D, Grid3D, HexGrid, A* pathfinding |
+
+## Versioning Strategy
+
+**Independent versioning** — each package versions separately. Bumped only when it changes.
+
+- Workspace root version tracks release milestones (informational only)
+- Core (`tick`) and extensions version independently
+- Breaking changes bump the minor version (pre-1.0 semver)
 
 ## Technical Decisions
 
@@ -47,6 +58,8 @@ tick-engine/
 - **Package manager**: uv (workspace mode)
 - **Build system**: hatchling
 - **Dependency resolution**: workspace sources (`tick = { workspace = true }`)
+- **Type checking**: mypy strict mode (all packages have `py.typed` markers)
+- **CI**: GitHub Actions (test matrix + typecheck job)
 
 ## Development Practices
 
@@ -69,6 +82,9 @@ uv run --package tick-blueprint pytest
 uv run --package tick-signal pytest
 uv run --package tick-tween pytest
 uv run --package tick-spatial pytest
+
+# Type checking
+uv run mypy
 ```
 
 ## Dependency Graph

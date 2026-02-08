@@ -37,52 +37,52 @@ class TestHexGridPlacement:
     def test_place_and_retrieve_entity(self):
         hex_grid = HexGrid(width=10, height=10)
         eid = 1
-        hex_grid.place(eid, 5, 5)
+        hex_grid.place(eid, (5, 5))
 
-        entities = hex_grid.at(5, 5)
+        entities = hex_grid.at((5, 5))
         assert eid in entities
         assert hex_grid.position_of(eid) == (5, 5)
 
     def test_place_at_zero_zero(self):
         hex_grid = HexGrid(width=10, height=10)
         eid = 1
-        hex_grid.place(eid, 0, 0)
+        hex_grid.place(eid, (0, 0))
 
         assert hex_grid.position_of(eid) == (0, 0)
-        assert eid in hex_grid.at(0, 0)
+        assert eid in hex_grid.at((0, 0))
 
     def test_place_at_max_coordinates(self):
         hex_grid = HexGrid(width=10, height=10)
         eid = 1
-        hex_grid.place(eid, 9, 9)
+        hex_grid.place(eid, (9, 9))
 
         assert hex_grid.position_of(eid) == (9, 9)
-        assert eid in hex_grid.at(9, 9)
+        assert eid in hex_grid.at((9, 9))
 
     def test_place_out_of_bounds_raises_value_error(self):
         hex_grid = HexGrid(width=10, height=10)
 
         with pytest.raises(ValueError):
-            hex_grid.place(1, -1, 5)
+            hex_grid.place(1, (-1, 5))
 
         with pytest.raises(ValueError):
-            hex_grid.place(1, 5, -1)
+            hex_grid.place(1, (5, -1))
 
         with pytest.raises(ValueError):
-            hex_grid.place(1, 10, 5)
+            hex_grid.place(1, (10, 5))
 
         with pytest.raises(ValueError):
-            hex_grid.place(1, 5, 10)
+            hex_grid.place(1, (5, 10))
 
     def test_place_auto_removes_from_old_position(self):
         hex_grid = HexGrid(width=10, height=10)
         eid = 1
 
-        hex_grid.place(eid, 3, 3)
-        hex_grid.place(eid, 7, 7)
+        hex_grid.place(eid, (3, 3))
+        hex_grid.place(eid, (7, 7))
 
-        assert eid not in hex_grid.at(3, 3)
-        assert eid in hex_grid.at(7, 7)
+        assert eid not in hex_grid.at((3, 3))
+        assert eid in hex_grid.at((7, 7))
 
 
 class TestHexGridNeighbors:
@@ -90,7 +90,7 @@ class TestHexGridNeighbors:
 
     def test_neighbors_center_has_six(self):
         hex_grid = HexGrid(width=10, height=10)
-        neighbors = hex_grid.neighbors(5, 5)
+        neighbors = hex_grid.neighbors((5, 5))
 
         # Hex directions: (+1,0), (-1,0), (0,+1), (0,-1), (+1,-1), (-1,+1)
         expected = [
@@ -108,7 +108,7 @@ class TestHexGridNeighbors:
 
     def test_neighbors_corner_zero_zero_within_bounds(self):
         hex_grid = HexGrid(width=10, height=10)
-        neighbors = hex_grid.neighbors(0, 0)
+        neighbors = hex_grid.neighbors((0, 0))
 
         # Only neighbors within bounds
         # From (0,0): (+1,0)=(1,0), (0,+1)=(0,1)
@@ -128,7 +128,7 @@ class TestHexGridNeighbors:
 
     def test_neighbors_respects_bounds(self):
         hex_grid = HexGrid(width=5, height=5)
-        neighbors = hex_grid.neighbors(0, 0)
+        neighbors = hex_grid.neighbors((0, 0))
 
         # All neighbors should be within [0,5) x [0,5)
         for q, r in neighbors:
@@ -197,19 +197,19 @@ class TestHexGridRadiusQueries:
     def test_in_radius_zero_returns_only_center(self):
         hex_grid = HexGrid(width=10, height=10)
         eid = 1
-        hex_grid.place(eid, 5, 5)
+        hex_grid.place(eid, (5, 5))
 
-        results = hex_grid.in_radius(5, 5, 0)
+        results = hex_grid.in_radius((5, 5), 0)
 
         assert len(results) == 1
-        assert (eid, 5, 5) in results
+        assert (eid, (5, 5)) in results
 
     def test_in_radius_one_returns_neighbors(self):
         hex_grid = HexGrid(width=10, height=10)
 
         # Place entity at center
         center_eid = 100
-        hex_grid.place(center_eid, 5, 5)
+        hex_grid.place(center_eid, (5, 5))
 
         # Place entities at all 6 neighbors
         neighbor_offsets = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]
@@ -217,9 +217,9 @@ class TestHexGridRadiusQueries:
         for i, (dq, dr) in enumerate(neighbor_offsets):
             eid = i + 1
             neighbor_eids.append(eid)
-            hex_grid.place(eid, 5 + dq, 5 + dr)
+            hex_grid.place(eid, (5 + dq, 5 + dr))
 
-        results = hex_grid.in_radius(5, 5, 1)
+        results = hex_grid.in_radius((5, 5), 1)
 
         # Should return center + 6 neighbors = 7
         assert len(results) == 7
@@ -235,10 +235,10 @@ class TestHexGridRadiusQueries:
         eid_near = 1
         eid_far = 2
 
-        hex_grid.place(eid_near, 6, 5)  # Hex distance 1
-        hex_grid.place(eid_far, 8, 5)   # Hex distance > 1
+        hex_grid.place(eid_near, (6, 5))  # Hex distance 1
+        hex_grid.place(eid_far, (8, 5))   # Hex distance > 1
 
-        results = hex_grid.in_radius(5, 5, 1)
+        results = hex_grid.in_radius((5, 5), 1)
 
         assert any(r[0] == eid_near for r in results)
         assert not any(r[0] == eid_far for r in results)
@@ -305,7 +305,7 @@ class TestHexGridRebuild:
         world.register_component(Pos2D)
 
         # Place entity manually
-        hex_grid.place(999, 5, 5)
+        hex_grid.place(999, (5, 5))
 
         # Rebuild from empty world
         hex_grid.rebuild(world)

@@ -234,7 +234,7 @@ class TestPathfindOnHexGrid:
             next_pos = path[i + 1]
 
             # Check that next_pos is a valid hex neighbor of curr
-            neighbors = hex_grid.neighbors(*curr)
+            neighbors = hex_grid.neighbors(curr)
             assert next_pos in neighbors
 
     def test_hexgrid_unreachable_returns_none(self):

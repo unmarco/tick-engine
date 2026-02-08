@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from tick_spatial.types import SpatialIndex
 
 
-def make_spatial_cleanup_system(index: SpatialIndex) -> Callable:
+def make_spatial_cleanup_system(index: SpatialIndex) -> Callable[[World, object], None]:
     def spatial_cleanup_system(world: World, ctx: object) -> None:
         dead = [eid for eid in index.tracked_entities() if not world.alive(eid)]
         for eid in dead:

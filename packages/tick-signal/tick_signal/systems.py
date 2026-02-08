@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from tick import TickContext, World
 
 
-def make_signal_system(bus: SignalBus) -> Callable:
+def make_signal_system(bus: SignalBus) -> Callable[[World, TickContext], None]:
     def signal_system(world: World, ctx: TickContext) -> None:
         bus.flush()
 

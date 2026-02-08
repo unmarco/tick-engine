@@ -40,7 +40,7 @@ class NeedHelper:
 def make_need_decay_system(
     on_critical: Callable[[World, TickContext, int, str], None] | None = None,
     on_zero: Callable[[World, TickContext, int, str], None] | None = None,
-) -> Callable:
+) -> Callable[[World, TickContext], None]:
     def need_decay_system(world: World, ctx: TickContext) -> None:
         for eid, (ns,) in list(world.query(NeedSet)):
             for name, entry in ns.data.items():

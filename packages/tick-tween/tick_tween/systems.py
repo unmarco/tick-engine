@@ -1,7 +1,7 @@
 """System factory for tween interpolation."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from tick_tween.components import Tween
 from tick_tween.easing import EASINGS
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 def make_tween_system(
     on_complete: Callable[[World, TickContext, EntityId, Tween], None] | None = None,
-) -> Callable:
+) -> Callable[[World, TickContext], None]:
     def tween_system(world: World, ctx: TickContext) -> None:
         for eid, (tween,) in list(world.query(Tween)):
             tween.elapsed += 1
@@ -33,7 +33,7 @@ def make_tween_system(
             if not world.has(eid, target_type):
                 continue
 
-            target_comp = world.get(eid, target_type)
+            target_comp: Any = world.get(eid, target_type)
 
             if not hasattr(target_comp, tween.field):
                 continue

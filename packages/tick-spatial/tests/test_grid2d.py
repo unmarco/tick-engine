@@ -39,63 +39,63 @@ class TestGrid2DPlacement:
     def test_place_and_retrieve_entity(self):
         grid = Grid2D(width=10, height=10)
         eid = 1
-        grid.place(eid, 5, 5)
+        grid.place(eid, (5, 5))
 
-        entities = grid.at(5, 5)
+        entities = grid.at((5, 5))
         assert eid in entities
         assert grid.position_of(eid) == (5, 5)
 
     def test_place_at_zero_zero(self):
         grid = Grid2D(width=10, height=10)
         eid = 1
-        grid.place(eid, 0, 0)
+        grid.place(eid, (0, 0))
 
         assert grid.position_of(eid) == (0, 0)
-        assert eid in grid.at(0, 0)
+        assert eid in grid.at((0, 0))
 
     def test_place_at_max_coordinates(self):
         grid = Grid2D(width=10, height=10)
         eid = 1
-        grid.place(eid, 9, 9)
+        grid.place(eid, (9, 9))
 
         assert grid.position_of(eid) == (9, 9)
-        assert eid in grid.at(9, 9)
+        assert eid in grid.at((9, 9))
 
     def test_place_negative_x_raises_value_error(self):
         grid = Grid2D(width=10, height=10)
         with pytest.raises(ValueError):
-            grid.place(1, -1, 5)
+            grid.place(1, (-1, 5))
 
     def test_place_negative_y_raises_value_error(self):
         grid = Grid2D(width=10, height=10)
         with pytest.raises(ValueError):
-            grid.place(1, 5, -1)
+            grid.place(1, (5, -1))
 
     def test_place_x_at_width_raises_value_error(self):
         grid = Grid2D(width=10, height=10)
         with pytest.raises(ValueError):
-            grid.place(1, 10, 5)
+            grid.place(1, (10, 5))
 
     def test_place_y_at_height_raises_value_error(self):
         grid = Grid2D(width=10, height=10)
         with pytest.raises(ValueError):
-            grid.place(1, 5, 10)
+            grid.place(1, (5, 10))
 
     def test_place_x_beyond_width_raises_value_error(self):
         grid = Grid2D(width=10, height=10)
         with pytest.raises(ValueError):
-            grid.place(1, 15, 5)
+            grid.place(1, (15, 5))
 
     def test_place_auto_removes_from_old_position(self):
         grid = Grid2D(width=10, height=10)
         eid = 1
 
-        grid.place(eid, 3, 3)
-        assert eid in grid.at(3, 3)
+        grid.place(eid, (3, 3))
+        assert eid in grid.at((3, 3))
 
-        grid.place(eid, 7, 7)
-        assert eid not in grid.at(3, 3)
-        assert eid in grid.at(7, 7)
+        grid.place(eid, (7, 7))
+        assert eid not in grid.at((3, 3))
+        assert eid in grid.at((7, 7))
         assert grid.position_of(eid) == (7, 7)
 
 
@@ -106,34 +106,34 @@ class TestGrid2DMovement:
         grid = Grid2D(width=10, height=10)
         eid = 1
 
-        grid.place(eid, 2, 2)
-        grid.move(eid, 6, 6)
+        grid.place(eid, (2, 2))
+        grid.move(eid, (6, 6))
 
         assert grid.position_of(eid) == (6, 6)
-        assert eid in grid.at(6, 6)
-        assert eid not in grid.at(2, 2)
+        assert eid in grid.at((6, 6))
+        assert eid not in grid.at((2, 2))
 
     def test_move_out_of_bounds_raises_value_error(self):
         grid = Grid2D(width=10, height=10)
         eid = 1
-        grid.place(eid, 5, 5)
+        grid.place(eid, (5, 5))
 
         with pytest.raises(ValueError):
-            grid.move(eid, 10, 5)
+            grid.move(eid, (10, 5))
 
     def test_move_to_negative_raises_value_error(self):
         grid = Grid2D(width=10, height=10)
         eid = 1
-        grid.place(eid, 5, 5)
+        grid.place(eid, (5, 5))
 
         with pytest.raises(ValueError):
-            grid.move(eid, -1, 5)
+            grid.move(eid, (-1, 5))
 
     def test_move_entity_not_on_grid_raises_key_error(self):
         grid = Grid2D(width=10, height=10)
 
         with pytest.raises(KeyError):
-            grid.move(999, 5, 5)
+            grid.move(999, (5, 5))
 
 
 class TestGrid2DRemoval:
@@ -143,11 +143,11 @@ class TestGrid2DRemoval:
         grid = Grid2D(width=10, height=10)
         eid = 1
 
-        grid.place(eid, 4, 4)
+        grid.place(eid, (4, 4))
         grid.remove(eid)
 
         assert grid.position_of(eid) is None
-        assert eid not in grid.at(4, 4)
+        assert eid not in grid.at((4, 4))
 
     def test_remove_entity_not_on_grid_is_noop(self):
         grid = Grid2D(width=10, height=10)
@@ -160,7 +160,7 @@ class TestGrid2DMultipleEntities:
 
     def test_at_empty_cell_returns_empty_frozenset(self):
         grid = Grid2D(width=10, height=10)
-        entities = grid.at(5, 5)
+        entities = grid.at((5, 5))
 
         assert isinstance(entities, frozenset)
         assert len(entities) == 0
@@ -170,10 +170,10 @@ class TestGrid2DMultipleEntities:
         eid1 = 1
         eid2 = 2
 
-        grid.place(eid1, 5, 5)
-        grid.place(eid2, 5, 5)
+        grid.place(eid1, (5, 5))
+        grid.place(eid2, (5, 5))
 
-        entities = grid.at(5, 5)
+        entities = grid.at((5, 5))
         assert eid1 in entities
         assert eid2 in entities
         assert len(entities) == 2
@@ -184,7 +184,7 @@ class TestGrid2DNeighbors:
 
     def test_neighbors_center_has_eight(self):
         grid = Grid2D(width=10, height=10)
-        neighbors = grid.neighbors(5, 5)
+        neighbors = grid.neighbors((5, 5))
 
         expected = [
             (4, 4), (5, 4), (6, 4),
@@ -198,7 +198,7 @@ class TestGrid2DNeighbors:
 
     def test_neighbors_corner_zero_zero_has_three(self):
         grid = Grid2D(width=10, height=10)
-        neighbors = grid.neighbors(0, 0)
+        neighbors = grid.neighbors((0, 0))
 
         expected = [(1, 0), (0, 1), (1, 1)]
 
@@ -208,7 +208,7 @@ class TestGrid2DNeighbors:
 
     def test_neighbors_corner_max_max_has_three(self):
         grid = Grid2D(width=10, height=10)
-        neighbors = grid.neighbors(9, 9)
+        neighbors = grid.neighbors((9, 9))
 
         expected = [(8, 8), (9, 8), (8, 9)]
 
@@ -218,7 +218,7 @@ class TestGrid2DNeighbors:
 
     def test_neighbors_edge_has_five(self):
         grid = Grid2D(width=10, height=10)
-        neighbors = grid.neighbors(0, 5)
+        neighbors = grid.neighbors((0, 5))
 
         expected = [
             (0, 4), (1, 4),
@@ -232,7 +232,7 @@ class TestGrid2DNeighbors:
 
     def test_neighbors_top_edge(self):
         grid = Grid2D(width=10, height=10)
-        neighbors = grid.neighbors(5, 0)
+        neighbors = grid.neighbors((5, 0))
 
         assert len(neighbors) == 5
         assert (4, 0) in neighbors
@@ -248,12 +248,12 @@ class TestGrid2DRadiusQueries:
     def test_in_radius_zero_returns_only_center(self):
         grid = Grid2D(width=10, height=10)
         eid = 1
-        grid.place(eid, 5, 5)
+        grid.place(eid, (5, 5))
 
-        results = grid.in_radius(5, 5, 0)
+        results = grid.in_radius((5, 5), 0)
 
         assert len(results) == 1
-        assert (eid, 5, 5) in results
+        assert (eid, (5, 5)) in results
 
     def test_in_radius_one_returns_neighbors(self):
         grid = Grid2D(width=10, height=10)
@@ -264,9 +264,9 @@ class TestGrid2DRadiusQueries:
             for dy in range(-1, 2):
                 eid = (dx + 1) * 3 + (dy + 1)
                 eids.append(eid)
-                grid.place(eid, 5 + dx, 5 + dy)
+                grid.place(eid, (5 + dx, 5 + dy))
 
-        results = grid.in_radius(5, 5, 1)
+        results = grid.in_radius((5, 5), 1)
 
         assert len(results) == 9
         for eid in eids:
@@ -278,9 +278,9 @@ class TestGrid2DRadiusQueries:
 
         # Entity at diagonal distance 1 (Chebyshev)
         eid = 1
-        grid.place(eid, 6, 6)
+        grid.place(eid, (6, 6))
 
-        results = grid.in_radius(5, 5, 1)
+        results = grid.in_radius((5, 5), 1)
 
         # Should be within radius 1
         assert any(r[0] == eid for r in results)
@@ -291,10 +291,10 @@ class TestGrid2DRadiusQueries:
         eid_near = 1
         eid_far = 2
 
-        grid.place(eid_near, 6, 5)  # Distance 1
-        grid.place(eid_far, 8, 5)   # Distance 3
+        grid.place(eid_near, (6, 5))  # Distance 1
+        grid.place(eid_far, (8, 5))   # Distance 3
 
-        results = grid.in_radius(5, 5, 1)
+        results = grid.in_radius((5, 5), 1)
 
         assert any(r[0] == eid_near for r in results)
         assert not any(r[0] == eid_far for r in results)
@@ -302,16 +302,16 @@ class TestGrid2DRadiusQueries:
     def test_in_radius_returns_coordinates(self):
         grid = Grid2D(width=10, height=10)
         eid = 1
-        grid.place(eid, 6, 7)
+        grid.place(eid, (6, 7))
 
-        results = grid.in_radius(5, 5, 2)
+        results = grid.in_radius((5, 5), 2)
 
-        # Should return (eid, x, y) tuples
-        assert (eid, 6, 7) in results
+        # Should return (eid, (x, y)) tuples
+        assert (eid, (6, 7)) in results
 
     def test_in_radius_empty_grid(self):
         grid = Grid2D(width=10, height=10)
-        results = grid.in_radius(5, 5, 2)
+        results = grid.in_radius((5, 5), 2)
 
         assert len(results) == 0
 
@@ -411,8 +411,8 @@ class TestGrid2DRebuild:
         assert grid.position_of(eid1) == (3, 2)
         assert grid.position_of(eid2) == (3, 2)
         # Both should be at the same cell
-        assert eid1 in grid.at(3, 2)
-        assert eid2 in grid.at(3, 2)
+        assert eid1 in grid.at((3, 2))
+        assert eid2 in grid.at((3, 2))
 
     def test_rebuild_skips_out_of_bounds_entities(self):
         engine = Engine(tps=20, seed=42)
@@ -454,7 +454,7 @@ class TestGrid2DRebuild:
         world.register_component(Pos2D)
 
         # Place entity manually
-        grid.place(999, 5, 5)
+        grid.place(999, (5, 5))
 
         # Rebuild from empty world
         grid.rebuild(world)
@@ -477,7 +477,7 @@ class TestGrid2DCleanupSystem:
 
         eid = world.spawn()
         world.attach(eid, Pos2D(x=5, y=5))
-        grid.place(eid, 5, 5)
+        grid.place(eid, (5, 5))
 
         world.despawn(eid)
         engine.step()
@@ -495,7 +495,7 @@ class TestGrid2DCleanupSystem:
 
         eid = world.spawn()
         world.attach(eid, Pos2D(x=5, y=5))
-        grid.place(eid, 5, 5)
+        grid.place(eid, (5, 5))
 
         engine.step()
 
@@ -515,7 +515,7 @@ class TestGrid2DCleanupSystem:
         for i in range(5):
             eid = world.spawn()
             world.attach(eid, Pos2D(x=i, y=i))
-            grid.place(eid, i, i)
+            grid.place(eid, (i, i))
             eids.append(eid)
 
         # Despawn all
