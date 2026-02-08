@@ -1,6 +1,6 @@
 [project]
 name = "tick-colony"
-version = "0.2.0"
+version = "0.2.1"
 description = "Reusable colony builder / roguelike simulation primitives for the tick engine"
 requires-python = ">=3.11"
 dependencies = [

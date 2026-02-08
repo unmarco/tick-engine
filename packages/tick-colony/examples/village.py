@@ -1,26 +1,28 @@
-"""Village demo — exercises all 5 extension packages.
+"""Village demo — exercises all extension packages + tick-atlas terrain.
 
 20x20 grid, 8 colonists with hunger/fatigue needs, strength/speed stats.
-Uses: tick-spatial (Grid2D), tick-schedule (Timer), tick-fsm (state machine),
-tick-signal (SignalBus), tick-blueprint (BlueprintRegistry).
-Systems: need decay, modifier tick, FSM decision, timer fire, movement,
-census every 100 ticks. Stockpile as container. Event log.
+Uses: tick-spatial (Grid2D, pathfind), tick-schedule (Timer), tick-fsm (FSM),
+tick-signal (SignalBus), tick-blueprint (BlueprintRegistry), tick-atlas (CellMap).
+Terrain: forest patches near edges (food source), a lake obstacle, grass default.
+Colonists pathfind around water and forage from forest tiles.
 Replay proof at tick 200.
 
 Run: uv run --package tick-colony python -m examples.village
 """
 from __future__ import annotations
 
+import random as _random_mod
 from dataclasses import dataclass
 
 from tick import Engine, World
 from tick.types import TickContext
 
-from tick_spatial import Grid2D, Coord, make_spatial_cleanup_system
+from tick_spatial import Grid2D, Coord, make_spatial_cleanup_system, pathfind
 from tick_schedule import Timer, make_timer_system
 from tick_fsm import FSM, FSMGuards, make_fsm_system
 from tick_signal import SignalBus
 from tick_blueprint import BlueprintRegistry
+from tick_atlas import CellDef, CellMap
 
 from tick_colony import (
     Pos2D, NeedSet, NeedHelper, StatBlock, Modifiers,
@@ -41,6 +43,11 @@ class Colonist:
     name: str
 
 
+@dataclass
+class Destination:
+    coord: Coord
+
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -59,10 +66,36 @@ BUILD_TICKS = 10
 
 
 # ---------------------------------------------------------------------------
+# Terrain
+# ---------------------------------------------------------------------------
+
+GRASS = CellDef(name="grass")
+FOREST = CellDef(name="forest", move_cost=2.0, properties={"food": True})
+WATER = CellDef(name="water", passable=False)
+
+
+def _setup_terrain(seed: int) -> None:
+    """Populate the cell map with deterministic terrain from seed."""
+    rng = _random_mod.Random(seed)
+    cells.clear_all()
+    # Forest patches near edges — where food grows
+    for x in range(GRID_W):
+        for y in range(GRID_H):
+            edge_dist = min(x, y, GRID_W - 1 - x, GRID_H - 1 - y)
+            if edge_dist <= 2 and rng.random() < 0.4:
+                cells.set((x, y), FOREST)
+    # A small lake blocking the northeast
+    cells.fill_rect((14, 3), (17, 6), WATER)
+    # Keep stockpile area clear
+    cells.set(STOCKPILE_POS, GRASS)
+
+
+# ---------------------------------------------------------------------------
 # Shared state (closure-based DI)
 # ---------------------------------------------------------------------------
 
 grid: Grid2D = Grid2D(GRID_W, GRID_H)
+cells: CellMap = CellMap(default=GRASS)
 event_log = EventLog(max_entries=500)
 snapper = ColonySnapshot(grid=grid, event_log=event_log)
 bus = SignalBus()
@@ -78,13 +111,15 @@ guards = FSMGuards()
 guards.register("is_hungry", lambda w, eid: NeedHelper.get_value(w.get(eid, NeedSet), "hunger") < 40.0)
 guards.register("is_tired", lambda w, eid: NeedHelper.get_value(w.get(eid, NeedSet), "fatigue") < 40.0)
 guards.register("timer_done", lambda w, eid: not w.has(eid, Timer))
+guards.register("at_stockpile", lambda w, eid: grid.position_of(eid) == STOCKPILE_POS)
 guards.register("always", lambda w, eid: True)
 
 
 # FSM transition table
 TRANSITIONS = {
     "idle": [["is_hungry", "foraging"], ["is_tired", "resting"], ["always", "building"]],
-    "foraging": [["timer_done", "idle"]],
+    "foraging": [["timer_done", "returning"]],
+    "returning": [["at_stockpile", "idle"]],
     "resting": [["timer_done", "idle"]],
     "building": [["timer_done", "idle"]],
 }
@@ -102,15 +137,8 @@ def on_timer_fire(world: World, ctx: TickContext, eid: int, timer: Timer) -> Non
     name = world.get(eid, Colonist).name if world.has(eid, Colonist) else str(eid)
 
     if timer.name == "forage":
-        # Restore hunger, deposit food in stockpile
+        # Gathered food — hunger restored. Deposit happens when returning to stockpile.
         NeedHelper.set_value(needs, "hunger", NeedHelper.get_value(needs, "hunger") + 30.0)
-        # Move to stockpile and deposit
-        grid.move(eid, STOCKPILE_POS)
-        food = world.spawn()
-        if world.has(stockpile_eid, Container):
-            add_to_container(world, stockpile_eid, food)
-        bus.publish("forage_done", tick=ctx.tick_number,
-                    colonist=name, food_stored=len(contents(world, stockpile_eid)))
 
     elif timer.name == "rest":
         # Restore fatigue
@@ -132,42 +160,37 @@ def on_need_critical(world: World, ctx: TickContext, eid: int, need_name: str) -
 def on_transition(world: World, ctx: TickContext, eid: int, old_state: str, new_state: str) -> None:
     """Handle FSM state transitions."""
     if new_state == "foraging":
-        # Move toward random edge
-        tx = ctx.random.randint(0, GRID_W - 1)
-        ty = ctx.random.choice([0, GRID_H - 1])
-        mods = world.get(eid, Modifiers) if world.has(eid, Modifiers) else Modifiers(entries=[])
-        speed = effective(world.get(eid, StatBlock), mods, "speed")
-        _move_toward(eid, tx, ty, speed, ctx)
+        # Head toward a forest tile (food source)
+        forests = cells.of_type("forest")
+        if forests:
+            target = ctx.random.choice(forests)
+        else:
+            target = (ctx.random.randint(0, GRID_W - 1), ctx.random.choice([0, GRID_H - 1]))
+        world.attach(eid, Destination(coord=target))
         world.attach(eid, Timer(name="forage", remaining=FORAGE_TICKS))
 
+    elif new_state == "returning":
+        # Walk back to stockpile to deposit food
+        world.attach(eid, Destination(coord=STOCKPILE_POS))
+
     elif new_state == "resting":
-        # Move toward stockpile
-        mods = world.get(eid, Modifiers) if world.has(eid, Modifiers) else Modifiers(entries=[])
-        speed = effective(world.get(eid, StatBlock), mods, "speed")
-        _move_toward(eid, STOCKPILE_POS[0], STOCKPILE_POS[1], speed, ctx)
+        # Head toward stockpile to rest
+        world.attach(eid, Destination(coord=STOCKPILE_POS))
         world.attach(eid, Timer(name="rest", remaining=REST_TICKS))
 
     elif new_state == "building":
-        # Stay put
+        if world.has(eid, Destination):
+            world.detach(eid, Destination)
         world.attach(eid, Timer(name="build", remaining=BUILD_TICKS))
 
-
-def _move_toward(eid: int, tx: int, ty: int, speed: float, ctx: TickContext) -> None:
-    """Move entity a few steps toward target (simple, no pathfinding)."""
-    pos = grid.position_of(eid)
-    if pos is None:
-        return
-    x, y = pos
-    steps = max(1, int(speed))
-    for _ in range(steps):
-        dx = 1 if tx > x else (-1 if tx < x else 0)
-        dy = 1 if ty > y else (-1 if ty < y else 0)
-        nx, ny = x + dx, y + dy
-        nx = max(0, min(GRID_W - 1, nx))
-        ny = max(0, min(GRID_H - 1, ny))
-        if (nx, ny) != (x, y):
-            grid.move(eid, (nx, ny))
-            x, y = nx, ny
+    # Arrived at stockpile after foraging — deposit food
+    if old_state == "returning" and new_state == "idle":
+        name = world.get(eid, Colonist).name if world.has(eid, Colonist) else str(eid)
+        food = world.spawn()
+        if world.has(stockpile_eid, Container):
+            add_to_container(world, stockpile_eid, food)
+        bus.publish("forage_done", tick=ctx.tick_number,
+                    colonist=name, food_stored=len(contents(world, stockpile_eid)))
 
 
 # ---------------------------------------------------------------------------
@@ -184,6 +207,28 @@ def record_signal(signal_name: str, data: dict) -> None:
 # ---------------------------------------------------------------------------
 # Systems
 # ---------------------------------------------------------------------------
+
+def movement_system(world: World, ctx: TickContext) -> None:
+    """Move entities with a Destination toward their target each tick."""
+    for eid, (dest, stats, mods) in world.query(Destination, StatBlock, Modifiers):
+        pos = grid.position_of(eid)
+        if pos is None or pos == dest.coord:
+            world.detach(eid, Destination)
+            continue
+        path = pathfind(grid, pos, dest.coord, cost=cells.move_cost, walkable=cells.passable)
+        if path is None or len(path) <= 1:
+            world.detach(eid, Destination)
+            continue
+        speed = max(1, int(effective(stats, mods, "speed")))
+        for step in path[1 : speed + 1]:
+            grid.move(eid, step)
+        # Keep Pos2D in sync for snapshot/restore
+        final = grid.position_of(eid)
+        if final is not None:
+            world.attach(eid, Pos2D(x=float(final[0]), y=float(final[1])))
+        if final == dest.coord:
+            world.detach(eid, Destination)
+
 
 def flush_signals(world: World, ctx: TickContext) -> None:
     """Dispatch queued signals."""
@@ -220,6 +265,10 @@ def setup_engine(seed: int = 42) -> Engine:
     w = engine.world
     register_colony_components(w)
     w.register_component(Colonist)
+    w.register_component(Destination)
+
+    # Generate terrain
+    _setup_terrain(seed)
 
     # Subscribe signals to event log
     for signal in ["forage_done", "rest_done", "build_done", "need_critical"]:
@@ -231,19 +280,24 @@ def setup_engine(seed: int = 42) -> Engine:
     w.attach(stockpile_eid, Container(items=[], capacity=100))
     grid.place(stockpile_eid, STOCKPILE_POS)
 
-    # Create colonists
+    # Create colonists (only on passable tiles)
+    rng = _random_mod.Random(seed)
     for i in range(NUM_COLONISTS):
         eid = w.spawn()
         w.attach(eid, Colonist(name=NAMES[i]))
         x = 2 + (i * 3) % (GRID_W - 4)
         y = 2 + (i * 5) % (GRID_H - 4)
+        # Nudge off impassable tiles
+        while not cells.passable((x, y)):
+            x = rng.randint(0, GRID_W - 1)
+            y = rng.randint(0, GRID_H - 1)
         w.attach(eid, Pos2D(x=float(x), y=float(y)))
         grid.place(eid, (x, y))
 
         needs = NeedSet(data={})
-        NeedHelper.add(needs, "hunger", value=80.0, max_val=100.0,
+        NeedHelper.add(needs, "hunger", value=rng.uniform(55.0, 90.0), max_val=100.0,
                        decay_rate=0.5, critical_threshold=15.0)
-        NeedHelper.add(needs, "fatigue", value=90.0, max_val=100.0,
+        NeedHelper.add(needs, "fatigue", value=rng.uniform(65.0, 100.0), max_val=100.0,
                        decay_rate=0.3, critical_threshold=15.0)
         w.attach(eid, needs)
 
@@ -252,19 +306,14 @@ def setup_engine(seed: int = 42) -> Engine:
         w.attach(eid, stats)
         w.attach(eid, mods)
 
-        # Attach FSM starting in "idle"
-        w.attach(eid, FSM(state="idle", transitions=TRANSITIONS))
+        # Stagger initial build so colonists desync
+        w.attach(eid, FSM(state="building", transitions=TRANSITIONS))
+        w.attach(eid, Timer(name="build", remaining=rng.randint(1, BUILD_TICKS)))
 
     # Register systems (order matters)
-    # 1. Timer system — fires and detaches timers
-    # 2. FSM system — evaluates transitions
-    # 3. Need decay system — decays needs
-    # 4. Modifier tick system — decrements modifier durations
-    # 5. Spatial cleanup system — removes dead entities from grid
-    # 6. Flush signals — dispatches queued signals
-    # 7. Census system
     engine.add_system(make_timer_system(on_fire=on_timer_fire))
     engine.add_system(make_fsm_system(guards=guards, on_transition=on_transition))
+    engine.add_system(movement_system)
     engine.add_system(make_need_decay_system(on_critical=on_need_critical))
     engine.add_system(make_modifier_tick_system())
     engine.add_system(make_spatial_cleanup_system(grid))
@@ -299,12 +348,16 @@ def main() -> None:
 
     # --- Run A: straight through to 400 ---
     engine = setup_engine(seed)
+    n_forest = len(cells.of_type("forest"))
+    n_water = len(cells.of_type("water"))
+    print(f"Terrain: {n_forest} forest, {n_water} water, "
+          f"{GRID_W * GRID_H - n_forest - n_water} grass\n")
     engine.run(200)
     snap = snapper.snapshot(engine)
     state_at_200 = capture_state(engine.world)
     events_at_200 = len(event_log)
 
-    print(f"\n--- Snapshot taken at tick 200 ---\n")
+    print(f"\n--- Snapshot taken at tick 200 (events={events_at_200}) ---\n")
     engine.run(200)
     final_a = capture_state(engine.world)
     print(f"\nRun A done (tick 400)")
@@ -313,6 +366,7 @@ def main() -> None:
     # Reset shared state
     grid._cells.clear()
     grid._entities.clear()
+    cells.clear_all()
     event_log.restore([])
     bus = SignalBus()
     for signal in ["forage_done", "rest_done", "build_done", "need_critical"]:
@@ -321,19 +375,23 @@ def main() -> None:
     engine2 = Engine(tps=20, seed=seed)
     register_colony_components(engine2.world)
     engine2.world.register_component(Colonist)
+    engine2.world.register_component(Destination)
 
+    _setup_terrain(seed)
     snapper.restore(engine2, snap)
 
     # Re-add systems (not serialized)
     engine2.add_system(make_timer_system(on_fire=on_timer_fire))
     engine2.add_system(make_fsm_system(guards=guards, on_transition=on_transition))
+    engine2.add_system(movement_system)
     engine2.add_system(make_need_decay_system(on_critical=on_need_critical))
     engine2.add_system(make_modifier_tick_system())
     engine2.add_system(make_spatial_cleanup_system(grid))
     engine2.add_system(flush_signals)
     engine2.add_system(census_system)
 
-    print(f"\n--- Restored to tick 200, running to 400 ---\n")
+    events_after_restore = len(event_log)
+    print(f"\n--- Restored to tick 200 (events={events_after_restore}) running to 400 ---\n")
     engine2.run(200)
     final_b = capture_state(engine2.world)
     print(f"\nRun B done (tick 400)")
