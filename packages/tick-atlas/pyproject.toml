@@ -1,0 +1,21 @@
+[project]
+name = "tick-atlas"
+version = "0.1.0"
+description = "Cell/tile property maps for the tick engine"
+requires-python = ">=3.11"
+dependencies = [
+    "tick-spatial>=0.2.0",
+]
+
+[tool.uv.sources]
+tick-spatial = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["tick_atlas"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
