@@ -1,0 +1,13 @@
+[project]
+name = "tick"
+version = "0.2.1"
+description = "A minimal, general-purpose tick engine in Python"
+requires-python = ">=3.11"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
