@@ -8,6 +8,7 @@ members = [
     "tick-blueprint",
     "tick-colony",
     "tick-engine",
+    "tick-event",
     "tick-fsm",
     "tick-schedule",
     "tick-signal",
@@ -241,6 +242,17 @@ dev = [
     { name = "mypy", specifier = ">=1.11" },
     { name = "pytest", specifier = ">=8.0" },
 ]
+
+[[package]]
+name = "tick-event"
+version = "0.1.0"
+source = { editable = "packages/tick-event" }
+dependencies = [
+    { name = "tick" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "tick", editable = "packages/tick" }]
 
 [[package]]
 name = "tick-fsm"

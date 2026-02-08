@@ -1,6 +1,6 @@
 [project]
 name = "tick-engine"
-version = "0.2.0"
+version = "0.3.0"
 description = "Minimal tick engine ecosystem"
 requires-python = ">=3.11"
 
@@ -28,5 +28,6 @@ packages = [
     "tick_signal",
     "tick_tween",
     "tick_spatial",
+    "tick_event",
 ]
 exclude = ["tests/", "examples/"]

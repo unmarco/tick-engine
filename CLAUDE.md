@@ -6,8 +6,8 @@ A uv workspace monorepo containing the tick engine and all its extension package
 
 ## Current Status
 
-- **Version**: 0.2.0
-- **Tests**: 604 passing across all 8 packages
+- **Version**: 0.3.0
+- **Tests**: 658 passing across all 9 packages
 - **CI**: GitHub Actions (Python 3.11/3.12/3.13 matrix + mypy)
 - **Type checking**: mypy strict mode, all packages pass
 - **Repository**: https://github.com/unmarco/tick-engine
@@ -27,7 +27,8 @@ tick-engine/
 │   ├── tick-blueprint/         # entity templates
 │   ├── tick-signal/            # in-process event bus
 │   ├── tick-tween/             # value interpolation
-│   └── tick-spatial/           # spatial indexing + pathfinding
+│   ├── tick-spatial/           # spatial indexing + pathfinding
+│   └── tick-event/            # world-level event scheduling
 ```
 
 ## Packages
@@ -42,6 +43,7 @@ tick-engine/
 | tick-signal | `tick_signal` | 0.1.0 | In-process pub/sub event bus |
 | tick-tween | `tick_tween` | 0.1.0 | Value interpolation with easing |
 | tick-spatial | `tick_spatial` | 0.2.0 | Grid2D, Grid3D, HexGrid, A* pathfinding |
+| tick-event | `tick_event` | 0.1.0 | World-level event scheduling (cycles, probabilistic events) |
 
 ## Versioning Strategy
 
@@ -82,6 +84,7 @@ uv run --package tick-blueprint pytest
 uv run --package tick-signal pytest
 uv run --package tick-tween pytest
 uv run --package tick-spatial pytest
+uv run --package tick-event pytest
 
 # Type checking
 uv run mypy
@@ -99,5 +102,6 @@ tick >= 0.2.1
   ├── tick-blueprint
   ├── tick-signal
   ├── tick-tween
-  └── tick-spatial
+  ├── tick-spatial
+  └── tick-event
 ```
