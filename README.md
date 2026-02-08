@@ -9,13 +9,15 @@ The engine and all extensions use only the Python standard library. No external 
 | Package | Import | Version | Description |
 |---------|--------|---------|-------------|
 | [tick](packages/tick/) | `tick` | 0.2.1 | Core engine: loop, clock, world, ECS |
-| [tick-colony](packages/tick-colony/) | `tick_colony` | 0.1.0 | Colony builder / roguelike simulation primitives |
+| [tick-colony](packages/tick-colony/) | `tick_colony` | 0.2.0 | Colony builder / roguelike simulation primitives |
 | [tick-schedule](packages/tick-schedule/) | `tick_schedule` | 0.1.0 | Countdown timers and periodic triggers |
 | [tick-fsm](packages/tick-fsm/) | `tick_fsm` | 0.1.0 | Declarative finite state machines |
 | [tick-blueprint](packages/tick-blueprint/) | `tick_blueprint` | 0.1.0 | Entity template registry |
 | [tick-signal](packages/tick-signal/) | `tick_signal` | 0.1.0 | In-process pub/sub event bus |
 | [tick-tween](packages/tick-tween/) | `tick_tween` | 0.1.0 | Value interpolation with easing |
-| [tick-spatial](packages/tick-spatial/) | `tick_spatial` | 0.1.0 | Grid2D, HexGrid, A* pathfinding |
+| [tick-spatial](packages/tick-spatial/) | `tick_spatial` | 0.2.0 | Grid2D, Grid3D, HexGrid, A* pathfinding |
+| [tick-event](packages/tick-event/) | `tick_event` | 0.1.0 | World-level event scheduling (cycles, probabilistic events) |
+| [tick-atlas](packages/tick-atlas/) | `tick_atlas` | 0.1.0 | Cell/tile property maps (terrain, movement cost, passability) |
 
 ## Quick Start
 
@@ -55,17 +57,26 @@ Output:
 
 ## Dependency Graph
 
-All extensions depend only on `tick>=0.2.1`. No extension depends on any other extension. Mix and match freely.
+Extensions depend on `tick>=0.2.1`. tick-colony depends on all extension packages. tick-atlas depends on tick-spatial. Mix and match freely.
 
 ```
 tick >= 0.2.1
-  ├── tick-colony
+  ├── tick-colony >= 0.2.0
+  │     ├── tick-spatial >= 0.2.0
+  │     ├── tick-schedule >= 0.1.0
+  │     ├── tick-fsm >= 0.1.0
+  │     ├── tick-blueprint >= 0.1.0
+  │     ├── tick-signal >= 0.1.0
+  │     └── tick-event >= 0.1.0
   ├── tick-schedule
   ├── tick-fsm
   ├── tick-blueprint
   ├── tick-signal
   ├── tick-tween
-  └── tick-spatial
+  ├── tick-spatial
+  ├── tick-event
+  └── tick-atlas >= 0.1.0
+        └── tick-spatial >= 0.2.0
 ```
 
 ## Development
@@ -88,6 +99,8 @@ uv run --package tick-blueprint pytest
 uv run --package tick-signal pytest
 uv run --package tick-tween pytest
 uv run --package tick-spatial pytest
+uv run --package tick-event pytest
+uv run --package tick-atlas pytest
 ```
 
 Requires Python 3.11+.

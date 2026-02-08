@@ -5,6 +5,7 @@ requires-python = ">=3.11"
 [manifest]
 members = [
     "tick",
+    "tick-atlas",
     "tick-blueprint",
     "tick-colony",
     "tick-engine",
@@ -203,6 +204,17 @@ version = "0.2.1"
 source = { editable = "packages/tick" }
 
 [[package]]
+name = "tick-atlas"
+version = "0.1.0"
+source = { editable = "packages/tick-atlas" }
+dependencies = [
+    { name = "tick-spatial" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "tick-spatial", editable = "packages/tick-spatial" }]
+
+[[package]]
 name = "tick-blueprint"
 version = "0.1.0"
 source = { editable = "packages/tick-blueprint" }
@@ -215,18 +227,32 @@ requires-dist = [{ name = "tick", editable = "packages/tick" }]
 
 [[package]]
 name = "tick-colony"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packages/tick-colony" }
 dependencies = [
     { name = "tick" },
+    { name = "tick-blueprint" },
+    { name = "tick-event" },
+    { name = "tick-fsm" },
+    { name = "tick-schedule" },
+    { name = "tick-signal" },
+    { name = "tick-spatial" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "tick", editable = "packages/tick" }]
+requires-dist = [
+    { name = "tick", editable = "packages/tick" },
+    { name = "tick-blueprint", editable = "packages/tick-blueprint" },
+    { name = "tick-event", editable = "packages/tick-event" },
+    { name = "tick-fsm", editable = "packages/tick-fsm" },
+    { name = "tick-schedule", editable = "packages/tick-schedule" },
+    { name = "tick-signal", editable = "packages/tick-signal" },
+    { name = "tick-spatial", editable = "packages/tick-spatial" },
+]
 
 [[package]]
 name = "tick-engine"
-version = "0.2.0"
+version = "0.3.0"
 source = { virtual = "." }
 
 [package.dev-dependencies]
