@@ -16,7 +16,7 @@ class Lifecycle:
 
 def make_lifecycle_system(
     on_death: Callable[[World, TickContext, int, str], None] | None = None,
-) -> Callable:
+) -> Callable[[World, TickContext], None]:
     """Return a system that despawns entities whose age >= max_age.
 
     The *on_death* callback, if provided, is invoked **before** despawn with

@@ -1,6 +1,6 @@
 [project]
 name = "tick-engine"
-version = "0.1.1"
+version = "0.2.0"
 description = "Minimal tick engine ecosystem"
 requires-python = ">=3.11"
 
@@ -8,7 +8,25 @@ requires-python = ">=3.11"
 members = ["packages/*"]
 
 [dependency-groups]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "mypy>=1.11"]
 
 [tool.pytest.ini_options]
 testpaths = ["packages/*/tests"]
+addopts = ["--import-mode=importlib"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+packages = [
+    "tick",
+    "tick_colony",
+    "tick_schedule",
+    "tick_fsm",
+    "tick_blueprint",
+    "tick_signal",
+    "tick_tween",
+    "tick_spatial",
+]
+exclude = ["tests/", "examples/"]

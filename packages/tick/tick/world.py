@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Generator, TypeVar
+from typing import Any, Generator, TypeVar, cast
 
 from tick.types import DeadEntityError, EntityId, SnapshotError
 
@@ -64,7 +64,7 @@ class World:
             raise KeyError(
                 f"Entity {entity_id} has no {component_type.__name__} component"
             )
-        return store[entity_id]
+        return cast(T, store[entity_id])
 
     def has(self, entity_id: EntityId, component_type: type) -> bool:
         if entity_id not in self._alive:

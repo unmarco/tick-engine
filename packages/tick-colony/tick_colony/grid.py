@@ -130,7 +130,7 @@ class Grid:
             self.place(eid, pos.x, pos.y)
 
 
-def make_grid_cleanup_system(grid: Grid) -> Callable:
+def make_grid_cleanup_system(grid: Grid) -> Callable[[World, object], None]:
     def grid_cleanup_system(world: World, ctx: object) -> None:
         dead = [eid for eid in grid._entities if not world.alive(eid)]
         for eid in dead:

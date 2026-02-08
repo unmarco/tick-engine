@@ -18,7 +18,7 @@ class Action:
 def make_action_system(
     on_complete: Callable[[World, TickContext, int, Action], None],
     on_cancel: Callable[[World, TickContext, int, Action], None] | None = None,
-) -> Callable:
+) -> Callable[[World, TickContext], None]:
     def action_system(world: World, ctx: TickContext) -> None:
         for eid, (action,) in list(world.query(Action)):
             if action.cancelled:

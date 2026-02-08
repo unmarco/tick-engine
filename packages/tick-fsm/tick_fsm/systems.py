@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 def make_fsm_system(
     guards: FSMGuards,
     on_transition: Callable[[World, TickContext, EntityId, str, str], None] | None = None,
-) -> Callable:
+) -> Callable[[World, TickContext], None]:
     """Return a system that evaluates FSM transitions each tick."""
 
     def fsm_system(world: World, ctx: TickContext) -> None:
