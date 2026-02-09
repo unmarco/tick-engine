@@ -5,6 +5,7 @@ requires-python = ">=3.11"
 [manifest]
 members = [
     "tick",
+    "tick-ability",
     "tick-atlas",
     "tick-blueprint",
     "tick-colony",
@@ -202,6 +203,17 @@ wheels = [
 name = "tick"
 version = "0.2.1"
 source = { editable = "packages/tick" }
+
+[[package]]
+name = "tick-ability"
+version = "0.1.0"
+source = { editable = "packages/tick-ability" }
+dependencies = [
+    { name = "tick" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "tick", editable = "packages/tick" }]
 
 [[package]]
 name = "tick-atlas"
