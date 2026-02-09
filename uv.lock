@@ -203,7 +203,7 @@ wheels = [
 
 [[package]]
 name = "tick"
-version = "0.2.1"
+version = "0.3.0"
 source = { editable = "packages/tick" }
 
 [[package]]
@@ -285,7 +285,7 @@ requires-dist = [{ name = "tick", editable = "packages/tick" }]
 
 [[package]]
 name = "tick-engine"
-version = "0.7.0"
+version = "0.8.0"
 source = { virtual = "." }
 
 [package.dev-dependencies]
@@ -315,7 +315,7 @@ requires-dist = [{ name = "tick", editable = "packages/tick" }]
 
 [[package]]
 name = "tick-fsm"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packages/tick-fsm" }
 dependencies = [
     { name = "tick" },
