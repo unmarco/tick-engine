@@ -12,12 +12,14 @@ The engine and all extensions use only the Python standard library. No external 
 | [tick-colony](packages/tick-colony/) | `tick_colony` | 0.2.0 | Colony builder / roguelike simulation primitives |
 | [tick-schedule](packages/tick-schedule/) | `tick_schedule` | 0.1.0 | Countdown timers and periodic triggers |
 | [tick-fsm](packages/tick-fsm/) | `tick_fsm` | 0.1.0 | Declarative finite state machines |
-| [tick-blueprint](packages/tick-blueprint/) | `tick_blueprint` | 0.1.0 | Entity template registry |
+| [tick-blueprint](packages/tick-blueprint/) | `tick_blueprint` | 0.2.0 | Entity template registry (with meta) |
 | [tick-signal](packages/tick-signal/) | `tick_signal` | 0.1.0 | In-process pub/sub event bus |
 | [tick-tween](packages/tick-tween/) | `tick_tween` | 0.1.0 | Value interpolation with easing |
 | [tick-spatial](packages/tick-spatial/) | `tick_spatial` | 0.2.0 | Grid2D, Grid3D, HexGrid, A* pathfinding |
 | [tick-event](packages/tick-event/) | `tick_event` | 0.1.0 | World-level event scheduling (cycles, probabilistic events) |
-| [tick-atlas](packages/tick-atlas/) | `tick_atlas` | 0.1.0 | Cell/tile property maps (terrain, movement cost, passability) |
+| [tick-atlas](packages/tick-atlas/) | `tick_atlas` | 0.2.0 | Cell/tile property maps (terrain, movement cost, passability) |
+| [tick-ability](packages/tick-ability/) | `tick_ability` | 0.1.0 | Player-triggered abilities (charges, cooldowns, effects) |
+| [tick-command](packages/tick-command/) | `tick_command` | 0.1.0 | Typed command queue (handlers, footprints) |
 
 ## Quick Start
 
@@ -75,8 +77,10 @@ tick >= 0.2.1
   ├── tick-tween
   ├── tick-spatial
   ├── tick-event
-  └── tick-atlas >= 0.1.0
-        └── tick-spatial >= 0.2.0
+  ├── tick-atlas >= 0.2.0
+  │     └── tick-spatial >= 0.2.0
+  ├── tick-ability >= 0.1.0
+  └── tick-command >= 0.1.0
 ```
 
 ## Development
@@ -101,6 +105,8 @@ uv run --package tick-tween pytest
 uv run --package tick-spatial pytest
 uv run --package tick-event pytest
 uv run --package tick-atlas pytest
+uv run --package tick-ability pytest
+uv run --package tick-command pytest
 ```
 
 Requires Python 3.11+.

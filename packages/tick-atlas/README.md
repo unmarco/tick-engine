@@ -74,6 +74,7 @@ Sparse, dimension-agnostic cell property storage. Only non-default cells are sto
 | `at` | `(coord) -> CellDef` | Returns default for unset coords. |
 | `passable` | `(coord) -> bool` | Matches `pathfind(walkable=...)`. |
 | `move_cost` | `(from, to) -> float` | Uses destination cost. Matches `pathfind(cost=...)`. |
+| `matches` | `(coord, requirements) -> bool` | Check cell against a requirements dict (see below). |
 | `of_type` | `(name) -> list[Coord]` | All coords with given cell type (non-default only). |
 | `coords` | `() -> list[Coord]` | All non-default coordinates. |
 | `default` | property | The default cell type. |
@@ -90,6 +91,20 @@ cells2.restore(snap)
 ```
 
 All CellDefs must be registered before `restore()`. Coordinates are serialized as comma-separated strings, supporting any dimensionality.
+
+### Cell Matching
+
+`matches()` checks if a cell satisfies a dict of requirements. The special key `"terrain"` compares against the CellDef name; all other keys compare against CellDef properties. Returns `False` for default (sparse) cells.
+
+```python
+farmland = CellDef(name="farmland", properties={"buildable": True, "fertile": True})
+cells.set((5, 3), farmland)
+
+cells.matches((5, 3), {"buildable": True})                     # True
+cells.matches((5, 3), {"terrain": "farmland", "fertile": True}) # True
+cells.matches((5, 3), {"buildable": False})                     # False
+cells.matches((0, 0), {"buildable": True})                      # False (default cell)
+```
 
 ### Pathfind Integration
 
