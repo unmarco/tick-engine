@@ -1,0 +1,19 @@
+[project]
+name = "placement-playground"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "pygame>=2.5.0",
+    "tick>=0.2.1",
+    "tick-command>=0.1.0",
+    "tick-spatial>=0.2.0",
+    "tick-atlas>=0.2.0",
+    "tick-blueprint>=0.2.0",
+]
+
+[tool.uv.sources]
+tick = { path = "../../packages/tick", editable = true }
+tick-command = { path = "../../packages/tick-command", editable = true }
+tick-spatial = { path = "../../packages/tick-spatial", editable = true }
+tick-atlas = { path = "../../packages/tick-atlas", editable = true }
+tick-blueprint = { path = "../../packages/tick-blueprint", editable = true }
