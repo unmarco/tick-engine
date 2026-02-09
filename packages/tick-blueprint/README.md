@@ -63,13 +63,28 @@ registry = BlueprintRegistry()
 
 | Method | Description |
 |--------|-------------|
-| `.define(name, recipe)` | Register a template. `recipe` is `{type_key: {field: value}}` |
+| `.define(name, recipe, meta=None)` | Register a template. `recipe` is `{type_key: {field: value}}`. Optional `meta` dict for arbitrary metadata. |
 | `.spawn(world, name, overrides=None)` | Create entity from template, returns `EntityId` |
 | `.has(name) -> bool` | Check if a recipe is defined |
 | `.recipes() -> dict` | Deep copy of all defined recipes |
-| `.remove(name)` | Remove a recipe (raises `KeyError` if missing) |
+| `.meta(name) -> dict` | Return the meta dict for a recipe (raises `KeyError` if missing) |
+| `.remove(name)` | Remove a recipe and its meta (raises `KeyError` if missing) |
 
 The `overrides` parameter merges field values into the recipe before spawning. Existing component fields are updated; new component keys are added.
+
+### Meta
+
+Recipes can carry arbitrary metadata -- placement requirements, costs, UI hints, whatever the game needs. The engine stores the blob and gives it back; it interprets nothing.
+
+```python
+bp.define("farm",
+    recipe={"__main__.Pos": {"x": 0, "y": 0}},
+    meta={"requires": {"buildable": True}, "cost": {"wood": 50}},
+)
+
+bp.meta("farm")  # {"requires": {"buildable": True}, "cost": {"wood": 50}}
+bp.meta("unknown")  # raises KeyError
+```
 
 ## Part of [tick-engine](../../README.md)
 
