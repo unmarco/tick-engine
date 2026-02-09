@@ -1,6 +1,6 @@
 [project]
 name = "tick-fsm"
-version = "0.1.0"
+version = "0.2.0"
 description = "Finite state machine primitives for the tick engine"
 requires-python = ">=3.11"
 dependencies = [

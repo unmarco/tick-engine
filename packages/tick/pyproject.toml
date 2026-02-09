@@ -1,6 +1,6 @@
 [project]
 name = "tick"
-version = "0.2.1"
+version = "0.3.0"
 description = "A minimal, general-purpose tick engine in Python"
 requires-python = ">=3.11"
 dependencies = []

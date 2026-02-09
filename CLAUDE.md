@@ -6,8 +6,8 @@ A uv workspace monorepo containing the tick engine and all its extension package
 
 ## Current Status
 
-- **Version**: 0.7.0
-- **Tests**: 1020 passing across all 13 packages
+- **Version**: 0.8.0
+- **Tests**: 1126 passing across all 13 packages
 - **CI**: GitHub Actions (Python 3.11/3.12/3.13 matrix + mypy)
 - **Type checking**: mypy strict mode, all packages pass
 - **Repository**: https://github.com/unmarco/tick-engine
@@ -39,10 +39,10 @@ tick-engine/
 
 | Package | Import | Version | Description |
 |---------|--------|---------|-------------|
-| tick | `tick` | 0.2.1 | Core engine: loop, clock, world, systems |
+| tick | `tick` | 0.3.0 | Core engine: loop, clock, world, systems, query filters, hooks |
 | tick-colony | `tick_colony` | 0.3.0 | Colony builder / roguelike simulation primitives |
 | tick-schedule | `tick_schedule` | 0.1.0 | Countdown timers and periodic triggers |
-| tick-fsm | `tick_fsm` | 0.1.0 | Declarative finite state machines |
+| tick-fsm | `tick_fsm` | 0.2.0 | Declarative finite state machines (hierarchical) |
 | tick-blueprint | `tick_blueprint` | 0.2.0 | Entity template registry (with meta) |
 | tick-signal | `tick_signal` | 0.1.0 | In-process pub/sub event bus |
 | tick-tween | `tick_tween` | 0.1.0 | Value interpolation with easing |
