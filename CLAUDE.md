@@ -6,8 +6,8 @@ A uv workspace monorepo containing the tick engine and all its extension package
 
 ## Current Status
 
-- **Version**: 0.5.1
-- **Tests**: 887 passing across all 12 packages
+- **Version**: 0.6.0
+- **Tests**: 991 passing across all 13 packages
 - **CI**: GitHub Actions (Python 3.11/3.12/3.13 matrix + mypy)
 - **Type checking**: mypy strict mode, all packages pass
 - **Repository**: https://github.com/unmarco/tick-engine
@@ -31,7 +31,8 @@ tick-engine/
 │   ├── tick-event/            # world-level event scheduling
 │   ├── tick-atlas/            # cell/tile property maps
 │   ├── tick-ability/          # player-triggered abilities
-│   └── tick-command/          # typed command queue
+│   ├── tick-command/          # typed command queue
+│   └── tick-resource/         # typed resource inventories
 ```
 
 ## Packages
@@ -50,6 +51,7 @@ tick-engine/
 | tick-atlas | `tick_atlas` | 0.2.0 | Cell/tile property maps (terrain, movement cost, passability) |
 | tick-ability | `tick_ability` | 0.1.0 | Player-triggered abilities (charges, cooldowns, effects) |
 | tick-command | `tick_command` | 0.1.0 | Typed command queue (handlers, footprints) |
+| tick-resource | `tick_resource` | 0.1.0 | Typed resource inventories (recipes, decay) |
 
 ## Versioning Strategy
 
@@ -94,6 +96,7 @@ uv run --package tick-event pytest
 uv run --package tick-atlas pytest
 uv run --package tick-ability pytest
 uv run --package tick-command pytest
+uv run --package tick-resource pytest
 
 # Type checking
 uv run mypy
@@ -122,5 +125,6 @@ tick >= 0.2.1
   ├── tick-atlas >= 0.2.0
   │     └── tick-spatial >= 0.2.0
   ├── tick-ability >= 0.1.0
-  └── tick-command >= 0.1.0
+  ├── tick-command >= 0.1.0
+  └── tick-resource >= 0.1.0
 ```

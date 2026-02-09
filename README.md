@@ -20,6 +20,7 @@ The engine and all extensions use only the Python standard library. No external 
 | [tick-atlas](packages/tick-atlas/) | `tick_atlas` | 0.2.0 | Cell/tile property maps (terrain, movement cost, passability) |
 | [tick-ability](packages/tick-ability/) | `tick_ability` | 0.1.0 | Player-triggered abilities (charges, cooldowns, effects) |
 | [tick-command](packages/tick-command/) | `tick_command` | 0.1.0 | Typed command queue (handlers, footprints) |
+| [tick-resource](packages/tick-resource/) | `tick_resource` | 0.1.0 | Typed resource inventories (recipes, decay) |
 
 ## Quick Start
 
@@ -80,7 +81,8 @@ tick >= 0.2.1
   ├── tick-atlas >= 0.2.0
   │     └── tick-spatial >= 0.2.0
   ├── tick-ability >= 0.1.0
-  └── tick-command >= 0.1.0
+  ├── tick-command >= 0.1.0
+  └── tick-resource >= 0.1.0
 ```
 
 ## Development
@@ -107,6 +109,7 @@ uv run --package tick-event pytest
 uv run --package tick-atlas pytest
 uv run --package tick-ability pytest
 uv run --package tick-command pytest
+uv run --package tick-resource pytest
 ```
 
 Requires Python 3.11+.
