@@ -2,6 +2,7 @@
 
 from tick.clock import Clock
 from tick.engine import Engine
+from tick.filters import AnyOf, Not
 from tick.types import DeadEntityError, EntityId, SnapshotError, TickContext
 from tick.world import World
 
@@ -13,4 +14,6 @@ __all__ = [
     "EntityId",
     "DeadEntityError",
     "SnapshotError",
+    "Not",
+    "AnyOf",
 ]

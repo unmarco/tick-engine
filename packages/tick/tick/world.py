@@ -3,11 +3,18 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Generator, TypeVar, cast
+from typing import Any, Callable, Generator, TypeVar, Union, cast
 
+from tick.filters import AnyOf, Not
 from tick.types import DeadEntityError, EntityId, SnapshotError
 
 T = TypeVar("T")
+
+# Query arguments: plain component types or filter sentinels.
+QueryArg = Union[type, Not, AnyOf]
+
+# Hook callback signature.
+HookCallback = Callable[["World", EntityId, Any], None]
 
 
 class World:
@@ -16,6 +23,9 @@ class World:
         self._next_id: int = 0
         self._alive: set[int] = set()
         self._registry: dict[str, type] = {}
+        self._on_attach: dict[type, list[HookCallback]] = {}
+        self._on_detach: dict[type, list[HookCallback]] = {}
+        self._hooks_enabled: bool = True
 
     def spawn(self) -> EntityId:
         eid = self._next_id
@@ -25,8 +35,11 @@ class World:
 
     def despawn(self, entity_id: EntityId) -> None:
         self._alive.discard(entity_id)
-        for store in self._components.values():
-            store.pop(entity_id, None)
+        for ctype, store in self._components.items():
+            component = store.pop(entity_id, None)
+            if component is not None and self._hooks_enabled:
+                for cb in self._on_detach.get(ctype, ()):
+                    cb(self, entity_id, component)
 
     def _register(self, ctype: type) -> None:
         key = f"{ctype.__module__}.{ctype.__qualname__}"
@@ -48,11 +61,17 @@ class World:
         if ctype not in self._components:
             self._components[ctype] = {}
         self._components[ctype][entity_id] = component
+        if self._hooks_enabled:
+            for cb in self._on_attach.get(ctype, ()):
+                cb(self, entity_id, component)
 
     def detach(self, entity_id: EntityId, component_type: type) -> None:
         store = self._components.get(component_type)
         if store is not None:
-            store.pop(entity_id, None)
+            component = store.pop(entity_id, None)
+            if component is not None and self._hooks_enabled:
+                for cb in self._on_detach.get(component_type, ()):
+                    cb(self, entity_id, component)
 
     def get(self, entity_id: EntityId, component_type: type[T]) -> T:
         if entity_id not in self._alive:
@@ -73,19 +92,72 @@ class World:
         return store is not None and entity_id in store
 
     def query(
-        self, *component_types: type
+        self, *args: QueryArg
     ) -> Generator[tuple[EntityId, tuple[Any, ...]], None, None]:
-        if not component_types:
+        if not args:
             return
-        first = component_types[0]
-        first_store = self._components.get(first)
-        if first_store is None:
-            return
-        for eid in list(first_store):
+
+        required: list[type] = []
+        excluded: list[type] = []
+        any_groups: list[tuple[type, ...]] = []
+
+        for arg in args:
+            if isinstance(arg, Not):
+                excluded.append(arg.ctype)
+            elif isinstance(arg, AnyOf):
+                any_groups.append(arg.ctypes)
+            else:
+                required.append(arg)
+
+        # Choose iteration base.
+        if required:
+            base_store = self._components.get(required[0])
+            if base_store is None:
+                return
+            candidates = list(base_store)
+        elif any_groups:
+            # Union of entity ids from the first AnyOf group.
+            eids: set[int] = set()
+            for ct in any_groups[0]:
+                store = self._components.get(ct)
+                if store is not None:
+                    eids.update(store)
+            candidates = list(eids)
+        else:
+            # Only Not filters — iterate all alive entities.
+            candidates = list(self._alive)
+
+        for eid in candidates:
             if eid not in self._alive:
                 continue
-            components = []
-            for ctype in component_types:
+
+            # Check Not filters.
+            skip = False
+            for ctype in excluded:
+                ex_store = self._components.get(ctype)
+                if ex_store is not None and eid in ex_store:
+                    skip = True
+                    break
+            if skip:
+                continue
+
+            # Check AnyOf filters.
+            for group in any_groups:
+                found = False
+                for ctype in group:
+                    a_store = self._components.get(ctype)
+                    if a_store is not None and eid in a_store:
+                        found = True
+                        break
+                if not found:
+                    skip = True
+                    break
+            if skip:
+                continue
+
+            # Collect required components.
+            components: list[Any] = []
+            for ctype in required:
                 store = self._components.get(ctype)
                 if store is None or eid not in store:
                     break
@@ -98,6 +170,40 @@ class World:
 
     def alive(self, entity_id: EntityId) -> bool:
         return entity_id in self._alive
+
+    # -- Change detection hooks --
+
+    def on_attach(
+        self, ctype: type, callback: HookCallback
+    ) -> None:
+        self._on_attach.setdefault(ctype, []).append(callback)
+
+    def on_detach(
+        self, ctype: type, callback: HookCallback
+    ) -> None:
+        self._on_detach.setdefault(ctype, []).append(callback)
+
+    def off_attach(
+        self, ctype: type, callback: HookCallback
+    ) -> None:
+        cbs = self._on_attach.get(ctype)
+        if cbs:
+            try:
+                cbs.remove(callback)
+            except ValueError:
+                pass
+
+    def off_detach(
+        self, ctype: type, callback: HookCallback
+    ) -> None:
+        cbs = self._on_detach.get(ctype)
+        if cbs:
+            try:
+                cbs.remove(callback)
+            except ValueError:
+                pass
+
+    # -- Snapshot / restore --
 
     def snapshot(self) -> dict[str, Any]:
         components: dict[str, dict[str, dict[str, Any]]] = {}
@@ -121,17 +227,21 @@ class World:
         }
 
     def restore(self, data: dict[str, Any]) -> None:
-        self._alive = set(data["entities"])
-        self._next_id = data["next_id"]
-        self._components.clear()
+        self._hooks_enabled = False
+        try:
+            self._alive = set(data["entities"])
+            self._next_id = data["next_id"]
+            self._components.clear()
 
-        for type_name, store_data in data["components"].items():
-            ctype = self._registry.get(type_name)
-            if ctype is None:
-                raise SnapshotError(
-                    f"Unregistered component type: {type_name!r}"
-                )
-            store: dict[int, Any] = {}
-            for eid_str, fields in store_data.items():
-                store[int(eid_str)] = ctype(**fields)
-            self._components[ctype] = store
+            for type_name, store_data in data["components"].items():
+                ctype = self._registry.get(type_name)
+                if ctype is None:
+                    raise SnapshotError(
+                        f"Unregistered component type: {type_name!r}"
+                    )
+                store: dict[int, Any] = {}
+                for eid_str, fields in store_data.items():
+                    store[int(eid_str)] = ctype(**fields)
+                self._components[ctype] = store
+        finally:
+            self._hooks_enabled = True
