@@ -1,7 +1,7 @@
 [project]
-name = "tick-blueprint"
-version = "0.2.0"
-description = "Entity template registry for the tick engine"
+name = "tick-command"
+version = "0.1.0"
+description = "Typed command queue for the tick engine"
 requires-python = ">=3.11"
 dependencies = [
     "tick>=0.2.1",
@@ -11,7 +11,7 @@ dependencies = [
 tick = { workspace = true }
 
 [tool.hatch.build.targets.wheel]
-packages = ["tick_blueprint"]
+packages = ["tick_command"]
 
 [build-system]
 requires = ["hatchling"]
