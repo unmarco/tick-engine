@@ -1,0 +1,19 @@
+[project]
+name = "easing-gallery"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "pygame>=2.5.0",
+    "tick>=0.2.1",
+    "tick-tween>=0.1.0",
+    "tick-schedule>=0.1.0",
+    "tick-signal>=0.1.0",
+    "tick-fsm>=0.1.0",
+]
+
+[tool.uv.sources]
+tick = { path = "../../packages/tick", editable = true }
+tick-tween = { path = "../../packages/tick-tween", editable = true }
+tick-schedule = { path = "../../packages/tick-schedule", editable = true }
+tick-signal = { path = "../../packages/tick-signal", editable = true }
+tick-fsm = { path = "../../packages/tick-fsm", editable = true }
