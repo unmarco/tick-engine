@@ -26,10 +26,10 @@ from tick_atlas import CellDef, CellMap
 
 from tick_colony import (
     Pos2D, NeedSet, NeedHelper, StatBlock, Modifiers,
-    Container, ContainedBy,
+    Inventory, InventoryHelper,
     EventLog, ColonySnapshot,
     make_need_decay_system, make_modifier_tick_system,
-    effective, add_modifier, add_to_container, contents,
+    effective, add_modifier,
     register_colony_components,
 )
 
@@ -97,7 +97,7 @@ def _setup_terrain(seed: int) -> None:
 grid: Grid2D = Grid2D(GRID_W, GRID_H)
 cells: CellMap = CellMap(default=GRASS)
 event_log = EventLog(max_entries=500)
-snapper = ColonySnapshot(grid=grid, event_log=event_log)
+snapper = ColonySnapshot(grid=grid, event_log=event_log, cellmap=cells)
 bus = SignalBus()
 blueprints = BlueprintRegistry()
 stockpile_eid: int = -1  # set during setup
@@ -186,11 +186,10 @@ def on_transition(world: World, ctx: TickContext, eid: int, old_state: str, new_
     # Arrived at stockpile after foraging — deposit food
     if old_state == "returning" and new_state == "idle":
         name = world.get(eid, Colonist).name if world.has(eid, Colonist) else str(eid)
-        food = world.spawn()
-        if world.has(stockpile_eid, Container):
-            add_to_container(world, stockpile_eid, food)
+        if world.has(stockpile_eid, Inventory):
+            InventoryHelper.add(world.get(stockpile_eid, Inventory), "food", 1)
         bus.publish("forage_done", tick=ctx.tick_number,
-                    colonist=name, food_stored=len(contents(world, stockpile_eid)))
+                    colonist=name, food_stored=InventoryHelper.count(world.get(stockpile_eid, Inventory), "food"))
 
 
 # ---------------------------------------------------------------------------
@@ -245,7 +244,7 @@ def census_system(world: World, ctx: TickContext) -> None:
         return
     avg_hunger = sum(NeedHelper.get_value(ns, "hunger") for _, (_, ns) in colonists) / pop
     avg_fatigue = sum(NeedHelper.get_value(ns, "fatigue") for _, (_, ns) in colonists) / pop
-    stored = len(contents(world, stockpile_eid)) if world.alive(stockpile_eid) else 0
+    stored = InventoryHelper.count(world.get(stockpile_eid, Inventory), "food") if world.alive(stockpile_eid) else 0
     builds = len(event_log.query(type="build_done"))
     print(
         f"[tick {ctx.tick_number:>4}]  pop={pop}  "
@@ -277,7 +276,7 @@ def setup_engine(seed: int = 42) -> Engine:
     # Create stockpile
     stockpile_eid = w.spawn()
     w.attach(stockpile_eid, Pos2D(x=float(STOCKPILE_POS[0]), y=float(STOCKPILE_POS[1])))
-    w.attach(stockpile_eid, Container(items=[], capacity=100))
+    w.attach(stockpile_eid, Inventory(capacity=100))
     grid.place(stockpile_eid, STOCKPILE_POS)
 
     # Create colonists (only on passable tiles)
@@ -332,7 +331,7 @@ def capture_state(world: World) -> dict:
             "fatigue": round(NeedHelper.get_value(ns, "fatigue"), 6),
             "pos": grid.position_of(eid),
         }
-    state["stockpile"] = len(contents(world, stockpile_eid)) if world.alive(stockpile_eid) else 0
+    state["stockpile"] = InventoryHelper.count(world.get(stockpile_eid, Inventory), "food") if world.alive(stockpile_eid) else 0
     state["events"] = len(event_log)
     return state
 

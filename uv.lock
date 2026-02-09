@@ -241,13 +241,17 @@ requires-dist = [{ name = "tick", editable = "packages/tick" }]
 
 [[package]]
 name = "tick-colony"
-version = "0.2.1"
+version = "0.3.0"
 source = { editable = "packages/tick-colony" }
 dependencies = [
     { name = "tick" },
+    { name = "tick-ability" },
+    { name = "tick-atlas" },
     { name = "tick-blueprint" },
+    { name = "tick-command" },
     { name = "tick-event" },
     { name = "tick-fsm" },
+    { name = "tick-resource" },
     { name = "tick-schedule" },
     { name = "tick-signal" },
     { name = "tick-spatial" },
@@ -256,9 +260,13 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "tick", editable = "packages/tick" },
+    { name = "tick-ability", editable = "packages/tick-ability" },
+    { name = "tick-atlas", editable = "packages/tick-atlas" },
     { name = "tick-blueprint", editable = "packages/tick-blueprint" },
+    { name = "tick-command", editable = "packages/tick-command" },
     { name = "tick-event", editable = "packages/tick-event" },
     { name = "tick-fsm", editable = "packages/tick-fsm" },
+    { name = "tick-resource", editable = "packages/tick-resource" },
     { name = "tick-schedule", editable = "packages/tick-schedule" },
     { name = "tick-signal", editable = "packages/tick-signal" },
     { name = "tick-spatial", editable = "packages/tick-spatial" },
@@ -277,7 +285,7 @@ requires-dist = [{ name = "tick", editable = "packages/tick" }]
 
 [[package]]
 name = "tick-engine"
-version = "0.5.1"
+version = "0.6.0"
 source = { virtual = "." }
 
 [package.dev-dependencies]

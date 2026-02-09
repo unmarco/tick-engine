@@ -2,7 +2,12 @@
 
 import json
 import pytest
-from tick_colony import Grid2D, Pos2D, EventLog, ColonySnapshot
+from tick_colony import (
+    Grid2D, Pos2D, EventLog, ColonySnapshot,
+    CellDef, CellMap, AbilityDef, AbilityManager, ResourceDef, ResourceRegistry,
+    Inventory, InventoryHelper, register_colony_components,
+    EventScheduler,
+)
 from tick import Engine
 
 
@@ -275,3 +280,201 @@ class TestColonySnapshot:
         assert engine2.seed == engine.seed
         assert grid2.position_of(e1) == (5, 5)
         assert len(event_log2) == 1
+
+    # --- CellMap tests ---
+
+    def test_snapshot_with_cellmap(self):
+        engine = Engine(tps=20, seed=42)
+
+        grass = CellDef(name="grass")
+        forest = CellDef(name="forest", move_cost=2.0)
+        water = CellDef(name="water", passable=False)
+
+        cells = CellMap(default=grass)
+        cells.set((5, 5), forest)
+        cells.set((3, 7), water)
+
+        snapper = ColonySnapshot(cellmap=cells)
+        data = snapper.snapshot(engine)
+
+        assert "colony" in data
+        assert "cellmap" in data["colony"]
+        cellmap_data = data["colony"]["cellmap"]
+        assert cellmap_data["default"] == "grass"
+        assert "5,5" in cellmap_data["cells"]
+        assert cellmap_data["cells"]["5,5"] == "forest"
+        assert "3,7" in cellmap_data["cells"]
+        assert cellmap_data["cells"]["3,7"] == "water"
+
+    def test_restore_with_cellmap(self):
+        engine1 = Engine(tps=20, seed=42)
+
+        grass = CellDef(name="grass")
+        forest = CellDef(name="forest", move_cost=2.0)
+        water = CellDef(name="water", passable=False)
+
+        cells1 = CellMap(default=grass)
+        cells1.set((5, 5), forest)
+        cells1.set((3, 7), water)
+
+        snapper1 = ColonySnapshot(cellmap=cells1)
+        data = snapper1.snapshot(engine1)
+
+        # Restore to new engine and new cellmap
+        engine2 = Engine(tps=20, seed=42)
+        cells2 = CellMap(default=grass)
+        # Register forest and water so restore can resolve them
+        cells2.register(forest)
+        cells2.register(water)
+
+        snapper2 = ColonySnapshot(cellmap=cells2)
+        snapper2.restore(engine2, data)
+
+        assert cells2.at((5, 5)) == forest
+        assert cells2.at((3, 7)) == water
+        assert cells2.at((0, 0)) == grass  # default for unset coords
+
+    # --- AbilityManager tests ---
+
+    def test_snapshot_with_ability_manager(self):
+        engine = Engine(tps=20, seed=42)
+
+        mgr = AbilityManager()
+        mgr.define(AbilityDef(name="heal", duration=5, cooldown=3, max_charges=2))
+
+        snapper = ColonySnapshot(ability_manager=mgr)
+        data = snapper.snapshot(engine)
+
+        assert "colony" in data
+        assert "ability_manager" in data["colony"]
+        am_data = data["colony"]["ability_manager"]
+        assert "abilities" in am_data
+        assert len(am_data["abilities"]) == 1
+        assert am_data["abilities"][0]["name"] == "heal"
+        assert am_data["abilities"][0]["charges"] == 2
+
+    def test_restore_with_ability_manager(self):
+        engine1 = Engine(tps=20, seed=42)
+
+        mgr1 = AbilityManager()
+        heal_def = AbilityDef(name="heal", duration=5, cooldown=3, max_charges=2)
+        mgr1.define(heal_def)
+
+        snapper1 = ColonySnapshot(ability_manager=mgr1)
+        data = snapper1.snapshot(engine1)
+
+        # Restore to new engine and new manager
+        engine2 = Engine(tps=20, seed=42)
+        mgr2 = AbilityManager()
+        mgr2.define(heal_def)  # definitions must be registered before restore
+
+        snapper2 = ColonySnapshot(ability_manager=mgr2)
+        snapper2.restore(engine2, data)
+
+        assert mgr2.charges("heal") == 2
+        assert mgr2.cooldown_remaining("heal") == 0
+        assert mgr2.time_remaining("heal") == 0
+
+    # --- ResourceRegistry tests ---
+
+    def test_snapshot_with_resource_registry(self):
+        engine = Engine(tps=20, seed=42)
+
+        reg = ResourceRegistry()
+        reg.define(ResourceDef(name="food", max_stack=100, decay_rate=1))
+        reg.define(ResourceDef(name="wood", max_stack=50))
+
+        snapper = ColonySnapshot(resource_registry=reg)
+        data = snapper.snapshot(engine)
+
+        assert "colony" in data
+        assert "resource_registry" in data["colony"]
+        rr_data = data["colony"]["resource_registry"]
+        assert "definitions" in rr_data
+        assert "food" in rr_data["definitions"]
+        assert rr_data["definitions"]["food"]["max_stack"] == 100
+        assert rr_data["definitions"]["food"]["decay_rate"] == 1
+        assert "wood" in rr_data["definitions"]
+        assert rr_data["definitions"]["wood"]["max_stack"] == 50
+
+    def test_restore_with_resource_registry(self):
+        engine1 = Engine(tps=20, seed=42)
+
+        reg1 = ResourceRegistry()
+        reg1.define(ResourceDef(name="food", max_stack=100, decay_rate=1))
+        reg1.define(ResourceDef(name="wood", max_stack=50))
+
+        snapper1 = ColonySnapshot(resource_registry=reg1)
+        data = snapper1.snapshot(engine1)
+
+        # Restore to new engine and new registry
+        engine2 = Engine(tps=20, seed=42)
+        reg2 = ResourceRegistry()
+
+        snapper2 = ColonySnapshot(resource_registry=reg2)
+        snapper2.restore(engine2, data)
+
+        assert reg2.has("food")
+        assert reg2.has("wood")
+        food_def = reg2.get("food")
+        assert food_def.max_stack == 100
+        assert food_def.decay_rate == 1
+        wood_def = reg2.get("wood")
+        assert wood_def.max_stack == 50
+
+    # --- Combined / integration tests ---
+
+    def test_snapshot_with_all_optional_params(self):
+        engine = Engine(tps=20, seed=42)
+        world = engine.world
+
+        grid = Grid2D(20, 20)
+        event_log = EventLog()
+        event_log.emit(tick=1, type="test")
+        scheduler = EventScheduler()
+
+        grass = CellDef(name="grass")
+        cells = CellMap(default=grass)
+        cells.set((1, 1), CellDef(name="stone", move_cost=3.0))
+
+        mgr = AbilityManager()
+        mgr.define(AbilityDef(name="heal", duration=5, cooldown=3, max_charges=2))
+
+        reg = ResourceRegistry()
+        reg.define(ResourceDef(name="food", max_stack=100, decay_rate=1))
+
+        snapper = ColonySnapshot(
+            grid=grid,
+            event_log=event_log,
+            scheduler=scheduler,
+            cellmap=cells,
+            ability_manager=mgr,
+            resource_registry=reg,
+        )
+
+        e1 = world.spawn()
+        world.attach(e1, Pos2D(x=5.0, y=5.0))
+        grid.rebuild(world)
+
+        data = snapper.snapshot(engine)
+
+        colony = data["colony"]
+        assert "grid" in colony
+        assert "events" in colony
+        assert "scheduler" in colony
+        assert "cellmap" in colony
+        assert "ability_manager" in colony
+        assert "resource_registry" in colony
+
+    def test_register_colony_components_includes_inventory(self):
+        engine = Engine(tps=20, seed=42)
+        world = engine.world
+
+        register_colony_components(world)
+
+        eid = world.spawn()
+        world.attach(eid, Inventory(slots={"wood": 10}, capacity=100))
+
+        inv = world.get(eid, Inventory)
+        assert inv.slots["wood"] == 10
+        assert inv.capacity == 100

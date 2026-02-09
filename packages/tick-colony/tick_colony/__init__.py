@@ -31,11 +31,26 @@ from tick_blueprint import BlueprintRegistry
 from tick_signal import SignalBus
 from tick_event import EventScheduler, EventGuards, EventDef, CycleDef, make_event_system
 
+# Re-export tick-command
+from tick_command import CommandQueue, make_command_system, expand_footprint, resolve_footprint
+
+# Re-export tick-atlas
+from tick_atlas import CellDef, CellMap
+
+# Re-export tick-ability
+from tick_ability import AbilityDef, AbilityState, AbilityGuards, AbilityManager, make_ability_system
+
+# Re-export tick-resource
+from tick_resource import (
+    Inventory, InventoryHelper, Recipe, ResourceDef, ResourceRegistry,
+    can_craft, craft, make_resource_decay_system,
+)
+
 if TYPE_CHECKING:
     from tick import World
 
 
 def register_colony_components(world: World) -> None:
     for ctype in (Pos2D, Timer, FSM, NeedSet, StatBlock, Modifiers,
-                  Container, ContainedBy, Lifecycle):
+                  Container, ContainedBy, Lifecycle, Inventory):
         world.register_component(ctype)
