@@ -81,6 +81,45 @@ Engine(tps: int = 20, seed: int | None = None)
 | `.alive(eid) -> bool` | Check if entity is alive |
 | `.register_component(ctype)` | Register a type for snapshot/restore |
 
+### Query Filters
+
+Filter entities in `world.query()`:
+
+```python
+from tick import Not, AnyOf
+
+# Exclude entities with a Dead component
+for eid, (pos,) in world.query(Pos, Not(Dead)):
+    ...
+
+# Match entities with at least one of the given types
+for eid, (body,) in world.query(Body, AnyOf(Circle, AABB)):
+    ...
+```
+
+Only plain component types appear in the result tuple; `Not` and `AnyOf` are filters only.
+
+### Change Detection Hooks
+
+React to component attach/detach:
+
+```python
+def on_new_health(world, eid, component):
+    print(f"Entity {eid} gained {component}")
+
+world.on_attach(Health, on_new_health)
+world.off_attach(Health, on_new_health)  # unsubscribe
+```
+
+| Method | Description |
+|--------|-------------|
+| `.on_attach(ctype, callback)` | Called when a component of `ctype` is attached |
+| `.on_detach(ctype, callback)` | Called when a component of `ctype` is detached |
+| `.off_attach(ctype, callback)` | Unsubscribe an attach hook |
+| `.off_detach(ctype, callback)` | Unsubscribe a detach hook |
+
+Hook callback signature: `(world: World, eid: EntityId, component: Any) -> None`. Hooks are suppressed during `restore()`.
+
 ### TickContext
 
 Frozen dataclass passed to every system:

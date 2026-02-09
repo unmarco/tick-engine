@@ -8,10 +8,10 @@ The engine and all extensions use only the Python standard library. No external 
 
 | Package | Import | Version | Description |
 |---------|--------|---------|-------------|
-| [tick](packages/tick/) | `tick` | 0.2.1 | Core engine: loop, clock, world, ECS |
-| [tick-colony](packages/tick-colony/) | `tick_colony` | 0.2.0 | Colony builder / roguelike simulation primitives |
+| [tick](packages/tick/) | `tick` | 0.3.0 | Core engine: loop, clock, world, systems, query filters, hooks |
+| [tick-colony](packages/tick-colony/) | `tick_colony` | 0.3.0 | Colony builder / roguelike simulation primitives |
 | [tick-schedule](packages/tick-schedule/) | `tick_schedule` | 0.1.0 | Countdown timers and periodic triggers |
-| [tick-fsm](packages/tick-fsm/) | `tick_fsm` | 0.1.0 | Declarative finite state machines |
+| [tick-fsm](packages/tick-fsm/) | `tick_fsm` | 0.2.0 | Declarative finite state machines (hierarchical) |
 | [tick-blueprint](packages/tick-blueprint/) | `tick_blueprint` | 0.2.0 | Entity template registry (with meta) |
 | [tick-signal](packages/tick-signal/) | `tick_signal` | 0.1.0 | In-process pub/sub event bus |
 | [tick-tween](packages/tick-tween/) | `tick_tween` | 0.1.0 | Value interpolation with easing |
@@ -21,6 +21,7 @@ The engine and all extensions use only the Python standard library. No external 
 | [tick-ability](packages/tick-ability/) | `tick_ability` | 0.1.0 | Player-triggered abilities (charges, cooldowns, effects) |
 | [tick-command](packages/tick-command/) | `tick_command` | 0.1.0 | Typed command queue (handlers, footprints) |
 | [tick-resource](packages/tick-resource/) | `tick_resource` | 0.1.0 | Typed resource inventories (recipes, decay) |
+| [tick-physics](packages/tick-physics/) | `tick_physics` | 0.1.0 | N-dimensional kinematics and collision detection |
 
 ## Quick Start
 
@@ -60,17 +61,21 @@ Output:
 
 ## Dependency Graph
 
-Extensions depend on `tick>=0.2.1`. tick-colony depends on all extension packages. tick-atlas depends on tick-spatial. Mix and match freely.
+Extensions depend on `tick>=0.2.1`. tick-colony depends on all 11 extension packages. tick-atlas depends on tick-spatial. Mix and match freely.
 
 ```
 tick >= 0.2.1
-  ├── tick-colony >= 0.2.0
+  ├── tick-colony >= 0.3.0
   │     ├── tick-spatial >= 0.2.0
   │     ├── tick-schedule >= 0.1.0
   │     ├── tick-fsm >= 0.1.0
   │     ├── tick-blueprint >= 0.1.0
   │     ├── tick-signal >= 0.1.0
-  │     └── tick-event >= 0.1.0
+  │     ├── tick-event >= 0.1.0
+  │     ├── tick-command >= 0.1.0
+  │     ├── tick-atlas >= 0.2.0
+  │     ├── tick-ability >= 0.1.0
+  │     └── tick-resource >= 0.1.0
   ├── tick-schedule
   ├── tick-fsm
   ├── tick-blueprint
@@ -82,8 +87,20 @@ tick >= 0.2.1
   │     └── tick-spatial >= 0.2.0
   ├── tick-ability >= 0.1.0
   ├── tick-command >= 0.1.0
-  └── tick-resource >= 0.1.0
+  ├── tick-resource >= 0.1.0
+  └── tick-physics >= 0.1.0
 ```
+
+## Examples
+
+| Example | Packages | Description |
+|---------|----------|-------------|
+| [placement](examples/placement/) | tick, tick-command, tick-spatial, tick-atlas, tick-blueprint | Tile placement playground |
+| [easing-gallery](examples/easing-gallery/) | tick, tick-tween, tick-fsm, tick-schedule, tick-signal | Easing function gallery |
+| [colony-sim](examples/colony-sim/) | all 13 original packages | Colony simulation chronicle |
+| [physics-sandbox](examples/physics-sandbox/) | tick, tick-physics | Interactive 2D physics sandbox |
+
+All examples are standalone pygame apps. Run with `uv run python main.py` from the example directory.
 
 ## Development
 
@@ -110,6 +127,7 @@ uv run --package tick-atlas pytest
 uv run --package tick-ability pytest
 uv run --package tick-command pytest
 uv run --package tick-resource pytest
+uv run --package tick-physics pytest
 ```
 
 Requires Python 3.11+.
