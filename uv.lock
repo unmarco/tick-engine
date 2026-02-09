@@ -13,6 +13,7 @@ members = [
     "tick-engine",
     "tick-event",
     "tick-fsm",
+    "tick-physics",
     "tick-resource",
     "tick-schedule",
     "tick-signal",
@@ -317,6 +318,17 @@ requires-dist = [{ name = "tick", editable = "packages/tick" }]
 name = "tick-fsm"
 version = "0.2.0"
 source = { editable = "packages/tick-fsm" }
+dependencies = [
+    { name = "tick" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "tick", editable = "packages/tick" }]
+
+[[package]]
+name = "tick-physics"
+version = "0.1.0"
+source = { editable = "packages/tick-physics" }
 dependencies = [
     { name = "tick" },
 ]
