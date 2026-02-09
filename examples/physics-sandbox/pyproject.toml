@@ -1,0 +1,13 @@
+[project]
+name = "physics-sandbox"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "pygame>=2.5.0",
+    "tick>=0.3.0",
+    "tick-physics>=0.1.0",
+]
+
+[tool.uv.sources]
+tick = { path = "../../packages/tick", editable = true }
+tick-physics = { path = "../../packages/tick-physics", editable = true }
