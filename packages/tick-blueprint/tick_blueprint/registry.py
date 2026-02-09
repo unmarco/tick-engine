@@ -13,10 +13,17 @@ class BlueprintRegistry:
 
     def __init__(self) -> None:
         self._recipes: dict[str, dict[str, dict[str, Any]]] = {}
+        self._meta: dict[str, dict[str, Any]] = {}
 
-    def define(self, name: str, recipe: dict[str, dict[str, Any]]) -> None:
+    def define(
+        self,
+        name: str,
+        recipe: dict[str, dict[str, Any]],
+        meta: dict[str, Any] | None = None,
+    ) -> None:
         """Define a named template. Overwrites if name exists."""
         self._recipes[name] = recipe
+        self._meta[name] = meta if meta is not None else {}
 
     def spawn(
         self,
@@ -44,6 +51,12 @@ class BlueprintRegistry:
         """Return a copy of all defined recipes."""
         return copy.deepcopy(self._recipes)
 
+    def meta(self, name: str) -> dict[str, Any]:
+        """Return the meta dict for a recipe. Raises KeyError if not defined."""
+        if name not in self._meta:
+            raise KeyError(name)
+        return self._meta[name]
+
     def has(self, name: str) -> bool:
         """Check if recipe name is defined."""
         return name in self._recipes
@@ -53,3 +66,4 @@ class BlueprintRegistry:
         if name not in self._recipes:
             raise KeyError(name)
         del self._recipes[name]
+        del self._meta[name]

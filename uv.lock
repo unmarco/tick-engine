@@ -9,6 +9,7 @@ members = [
     "tick-atlas",
     "tick-blueprint",
     "tick-colony",
+    "tick-command",
     "tick-engine",
     "tick-event",
     "tick-fsm",
@@ -217,7 +218,7 @@ requires-dist = [{ name = "tick", editable = "packages/tick" }]
 
 [[package]]
 name = "tick-atlas"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packages/tick-atlas" }
 dependencies = [
     { name = "tick-spatial" },
@@ -228,7 +229,7 @@ requires-dist = [{ name = "tick-spatial", editable = "packages/tick-spatial" }]
 
 [[package]]
 name = "tick-blueprint"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packages/tick-blueprint" }
 dependencies = [
     { name = "tick" },
@@ -261,6 +262,17 @@ requires-dist = [
     { name = "tick-signal", editable = "packages/tick-signal" },
     { name = "tick-spatial", editable = "packages/tick-spatial" },
 ]
+
+[[package]]
+name = "tick-command"
+version = "0.1.0"
+source = { editable = "packages/tick-command" }
+dependencies = [
+    { name = "tick" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "tick", editable = "packages/tick" }]
 
 [[package]]
 name = "tick-engine"

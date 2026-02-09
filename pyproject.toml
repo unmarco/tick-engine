@@ -31,5 +31,6 @@ packages = [
     "tick_event",
     "tick_atlas",
     "tick_ability",
+    "tick_command",
 ]
 exclude = ["tests/", "examples/"]

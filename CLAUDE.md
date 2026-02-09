@@ -7,7 +7,7 @@ A uv workspace monorepo containing the tick engine and all its extension package
 ## Current Status
 
 - **Version**: 0.4.1
-- **Tests**: 813 passing across all 11 packages
+- **Tests**: 887 passing across all 12 packages
 - **CI**: GitHub Actions (Python 3.11/3.12/3.13 matrix + mypy)
 - **Type checking**: mypy strict mode, all packages pass
 - **Repository**: https://github.com/unmarco/tick-engine
@@ -30,7 +30,8 @@ tick-engine/
 │   ├── tick-spatial/           # spatial indexing + pathfinding
 │   ├── tick-event/            # world-level event scheduling
 │   ├── tick-atlas/            # cell/tile property maps
-│   └── tick-ability/          # player-triggered abilities
+│   ├── tick-ability/          # player-triggered abilities
+│   └── tick-command/          # typed command queue
 ```
 
 ## Packages
@@ -41,13 +42,14 @@ tick-engine/
 | tick-colony | `tick_colony` | 0.2.0 | Colony builder / roguelike simulation primitives |
 | tick-schedule | `tick_schedule` | 0.1.0 | Countdown timers and periodic triggers |
 | tick-fsm | `tick_fsm` | 0.1.0 | Declarative finite state machines |
-| tick-blueprint | `tick_blueprint` | 0.1.0 | Entity template registry |
+| tick-blueprint | `tick_blueprint` | 0.2.0 | Entity template registry (with meta) |
 | tick-signal | `tick_signal` | 0.1.0 | In-process pub/sub event bus |
 | tick-tween | `tick_tween` | 0.1.0 | Value interpolation with easing |
 | tick-spatial | `tick_spatial` | 0.2.0 | Grid2D, Grid3D, HexGrid, A* pathfinding |
 | tick-event | `tick_event` | 0.1.0 | World-level event scheduling (cycles, probabilistic events) |
-| tick-atlas | `tick_atlas` | 0.1.0 | Cell/tile property maps (terrain, movement cost, passability) |
+| tick-atlas | `tick_atlas` | 0.2.0 | Cell/tile property maps (terrain, movement cost, passability) |
 | tick-ability | `tick_ability` | 0.1.0 | Player-triggered abilities (charges, cooldowns, effects) |
+| tick-command | `tick_command` | 0.1.0 | Typed command queue (handlers, footprints) |
 
 ## Versioning Strategy
 
@@ -91,6 +93,7 @@ uv run --package tick-spatial pytest
 uv run --package tick-event pytest
 uv run --package tick-atlas pytest
 uv run --package tick-ability pytest
+uv run --package tick-command pytest
 
 # Type checking
 uv run mypy
@@ -116,7 +119,8 @@ tick >= 0.2.1
   ├── tick-tween
   ├── tick-spatial
   ├── tick-event
-  ├── tick-atlas >= 0.1.0
+  ├── tick-atlas >= 0.2.0
   │     └── tick-spatial >= 0.2.0
-  └── tick-ability >= 0.1.0
+  ├── tick-ability >= 0.1.0
+  └── tick-command >= 0.1.0
 ```

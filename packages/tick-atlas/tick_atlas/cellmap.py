@@ -78,6 +78,25 @@ class CellMap:
         """Get movement cost to a coordinate. Matches pathfind(cost=...) signature."""
         return self.at(to_coord).move_cost
 
+    def matches(self, coord: Coord, requirements: dict[str, Any]) -> bool:
+        """Check if a cell satisfies all requirements.
+
+        Special key ``"terrain"`` compares against the CellDef name.
+        All other keys compare against CellDef properties.
+        Returns ``False`` for cells with no explicit definition (sparse default).
+        """
+        cell = self._cells.get(coord)
+        if cell is None:
+            return False
+        for key, value in requirements.items():
+            if key == "terrain":
+                if cell.name != value:
+                    return False
+            else:
+                if cell.properties.get(key) != value:
+                    return False
+        return True
+
     # --- Multi-cell Queries ---
 
     def of_type(self, name: str) -> list[Coord]:
