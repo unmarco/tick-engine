@@ -32,5 +32,6 @@ packages = [
     "tick_atlas",
     "tick_ability",
     "tick_command",
+    "tick_resource",
 ]
 exclude = ["tests/", "examples/"]
