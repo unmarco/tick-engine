@@ -15,9 +15,9 @@ from dataclasses import dataclass
 from tick import Engine, World
 from tick.types import TickContext
 from tick_colony import (
-    Pos2D, NeedSet, NeedHelper, StatBlock, Modifiers, Container, Lifecycle,
-    EventLog, Event, add_modifier, add_to_container, remove_from_container,
-    contents, register_colony_components, effective,
+    Pos2D, NeedSet, NeedHelper, StatBlock, Modifiers, Inventory, InventoryHelper, Lifecycle,
+    EventLog, Event, add_modifier,
+    register_colony_components, effective,
     Grid2D, pathfind, make_spatial_cleanup_system, Timer, make_timer_system,
     FSM, FSMGuards, make_fsm_system, SignalBus,
     make_need_decay_system, make_modifier_tick_system, make_lifecycle_system,
@@ -138,11 +138,10 @@ def _on_trans(world: World, ctx: TickContext, eid: int, old: str, new: str) -> N
     # Arrived at stockpile after foraging -- deposit food
     if old == "returning" and new == "idle":
         nm = world.get(eid, Colonist).name if world.has(eid, Colonist) else str(eid)
-        food = world.spawn()
-        if world.has(stockpile_eid, Container):
-            add_to_container(world, stockpile_eid, food)
+        if world.has(stockpile_eid, Inventory):
+            InventoryHelper.add(world.get(stockpile_eid, Inventory), "food", 1)
         log.emit(tick=ctx.tick_number, type="food_deposited", colonist=nm,
-                 food_stored=len(contents(world, stockpile_eid)))
+                 food_stored=InventoryHelper.count(world.get(stockpile_eid, Inventory), "food"))
 
 # -- Movement system ----------------------------------------------------------
 def _movement(world: World, ctx: TickContext) -> None:
@@ -178,10 +177,9 @@ def _ev_start(world: World, ctx: TickContext, name: str) -> None:
                 ns = world.get(e, NeedSet)
                 NeedHelper.set_value(ns, "hunger", NeedHelper.get_value(ns, "hunger") - 40)
                 log.emit(tick=ctx.tick_number, type="raid_damage", colonist=c.name)
-        if world.alive(stockpile_eid) and world.has(stockpile_eid, Container):
-            stored = contents(world, stockpile_eid)
-            for f in stored[:min(len(stored), ctx.random.randint(3, 10))]:
-                remove_from_container(world, stockpile_eid, f); world.despawn(f)
+        if world.alive(stockpile_eid) and world.has(stockpile_eid, Inventory):
+            inv = world.get(stockpile_eid, Inventory)
+            InventoryHelper.remove(inv, "food", ctx.random.randint(3, 10))
     elif name == "plague":
         pass  # plague effect applied via on_tick
     elif name in SEASONS:
@@ -225,11 +223,10 @@ def _birth(world: World, ctx: TickContext) -> None:
     global _name_idx
     alive = len(list(world.query(Colonist)))
     if alive >= MAX_POP: return
-    if not world.alive(stockpile_eid) or not world.has(stockpile_eid, Container): return
-    stored = contents(world, stockpile_eid)
-    if len(stored) < BIRTH_FOOD_MIN or ctx.random.random() > BIRTH_CHANCE: return
-    for f in stored[:BIRTH_FOOD_COST]:
-        remove_from_container(world, stockpile_eid, f); world.despawn(f)
+    if not world.alive(stockpile_eid) or not world.has(stockpile_eid, Inventory): return
+    stored = InventoryHelper.count(world.get(stockpile_eid, Inventory), "food")
+    if stored < BIRTH_FOOD_MIN or ctx.random.random() > BIRTH_CHANCE: return
+    InventoryHelper.remove(world.get(stockpile_eid, Inventory), "food", BIRTH_FOOD_COST)
     eid = world.spawn()
     nm = EXTRA_NAMES[_name_idx % len(EXTRA_NAMES)]; _name_idx += 1
     world.attach(eid, Colonist(name=nm))
@@ -260,7 +257,7 @@ def _flush(world: World, ctx: TickContext) -> None:
 def _census(world: World, ctx: TickContext) -> None:
     if ctx.tick_number % 500 != 0: return
     pop = len(list(world.query(Colonist)))
-    food = len(contents(world, stockpile_eid)) if world.alive(stockpile_eid) else 0
+    food = InventoryHelper.count(world.get(stockpile_eid, Inventory), "food") if world.alive(stockpile_eid) else 0
     log.emit(tick=ctx.tick_number, type="census", population=pop, food=food)
 
 # -- Setup --------------------------------------------------------------------
@@ -277,7 +274,7 @@ def setup(seed: int = 42) -> Engine:
 
     stockpile_eid = w.spawn()
     w.attach(stockpile_eid, Pos2D(x=float(STOCKPILE[0]), y=float(STOCKPILE[1])))
-    w.attach(stockpile_eid, Container(items=[], capacity=60))
+    w.attach(stockpile_eid, Inventory(capacity=60))
     grid.place(stockpile_eid, STOCKPILE)
 
     rng = _random_mod.Random(seed)

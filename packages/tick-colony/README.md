@@ -1,6 +1,6 @@
 # tick-colony
 
-Reusable colony builder and roguelike simulation primitives for the tick engine. Provides grid-based spatial indexing with A* pathfinding, actions, needs, stats with modifiers, containment, lifecycle, and event logging.
+Reusable colony builder and roguelike simulation primitives for the tick engine. Integrates 11 extension packages and provides needs, stats with modifiers, containment, lifecycle, event logging, and a unified snapshot/restore coordinator.
 
 ## Install
 
@@ -12,93 +12,82 @@ pip install tick-colony
 import tick_colony
 ```
 
-## Quick Example
+## Adopted Extensions
 
-```python
-from tick import Engine, World
-from tick.types import TickContext
-from tick_colony import (
-    Position, Grid, Action, NeedSet, NeedHelper,
-    make_grid_cleanup_system, make_action_system,
-    register_colony_components,
-)
+tick-colony re-exports the public APIs of all 11 extension packages so colony users can import everything from one place:
 
-engine = Engine(tps=10)
-grid = Grid(width=16, height=16)
+| Package | Re-exports |
+|---------|------------|
+| tick-spatial | `Grid2D`, `Pos2D`, `pathfind`, `make_spatial_cleanup_system` |
+| tick-schedule | `Timer`, `make_timer_system` |
+| tick-fsm | `FSM`, `FSMGuards`, `make_fsm_system` |
+| tick-blueprint | `BlueprintRegistry` |
+| tick-signal | `SignalBus` |
+| tick-event | `EventScheduler`, `EventGuards`, `EventDef`, `CycleDef`, `make_event_system` |
+| tick-command | `CommandQueue`, `make_command_system`, `expand_footprint`, `resolve_footprint` |
+| tick-atlas | `CellDef`, `CellMap` |
+| tick-ability | `AbilityDef`, `AbilityState`, `AbilityGuards`, `AbilityManager`, `make_ability_system` |
+| tick-resource | `Inventory`, `InventoryHelper`, `Recipe`, `ResourceDef`, `ResourceRegistry`, `can_craft`, `craft`, `make_resource_decay_system` |
 
-# Spawn an entity on the grid
-villager = engine.world.spawn()
-engine.world.attach(villager, Position(x=5, y=3))
-grid.place(villager, 5, 3)
-
-# Give it a need
-ns = NeedSet()
-NeedHelper.add(ns, "hunger", value=80, max_val=100, decay_rate=2.0, critical_threshold=20)
-engine.world.attach(villager, ns)
-
-# Register systems
-def on_action_done(world, ctx, eid, action):
-    print(f"[tick {ctx.tick_number}] {action.name} complete for entity {eid}")
-
-engine.add_system(make_action_system(on_complete=on_action_done))
-engine.add_system(make_grid_cleanup_system(grid))
-engine.run(5)
-```
-
-## Components
+## Colony Components
 
 | Component | Fields | Description |
 |-----------|--------|-------------|
-| `Position` | `x: int, y: int` | Grid coordinates |
-| `Action` | `name, total_ticks, elapsed_ticks, cancelled` | Timed action, auto-detaches on complete |
-| `NeedSet` | `data: dict` | Collection of needs (hunger, sleep, etc.) |
+| `NeedSet` | `data: dict` | Collection of needs (hunger, fatigue, etc.) |
 | `StatBlock` | `data: dict[str, float]` | Base stat values |
 | `Modifiers` | `entries: list` | Temporary stat bonuses with duration |
-| `Container` | `items: list[int], capacity: int` | Holds child entities |
+| `Container` | `items: list[int], capacity: int` | Holds child entity IDs (hierarchy) |
 | `ContainedBy` | `parent: int` | Marks entity as inside a container |
 | `Lifecycle` | `born_tick: int, max_age: int` | Age tracking, auto-despawn |
+| `Inventory` | `slots: dict[str, int], capacity: int` | Typed resource quantities |
 
 ## Framework Objects
 
 | Class | Description |
 |-------|-------------|
-| `Grid(width, height)` | Spatial index with place/move/remove, radius queries, A* pathfinding |
 | `EventLog(max_entries=0)` | Ring-buffer event log with emit/query/last |
-| `ColonySnapshot(grid, event_log)` | Snapshot/restore wrapper that auto-registers colony components |
+| `ColonySnapshot(grid, event_log, scheduler, cellmap, ability_manager, resource_registry)` | Unified snapshot/restore coordinator (all params optional) |
 
 ## System Factories
 
 | Factory | Description |
 |---------|-------------|
-| `make_action_system(on_complete, on_cancel=None)` | Ticks actions, fires callbacks on complete/cancel |
-| `make_grid_cleanup_system(grid)` | Removes dead entities from the grid |
-| `make_need_decay_system(on_critical=None, on_zero=None)` | Decays needs each tick |
+| `make_need_decay_system(on_critical, on_zero)` | Decays needs each tick |
 | `make_modifier_tick_system()` | Decrements modifier durations, removes expired |
-| `make_lifecycle_system(on_death=None)` | Despawns entities that exceed max_age |
+| `make_lifecycle_system(on_death)` | Despawns entities that exceed max_age |
 
 ## Helpers
 
 | Function | Description |
 |----------|-------------|
-| `NeedHelper.add(ns, name, value, max_val, decay_rate, critical_threshold)` | Add a need |
-| `NeedHelper.get_value(ns, name)` / `set_value(ns, name, value)` | Read/write need value |
-| `NeedHelper.is_critical(ns, name)` | Check if need is at critical threshold |
+| `register_colony_components(world)` | Register all colony types (including Inventory) for snapshot/restore |
+| `NeedHelper.add/get_value/set_value/is_critical` | Need manipulation |
 | `effective(stat_block, modifiers, name)` | Get base + modifier total |
-| `add_modifier(mods, stat_name, amount, duration)` | Add a temporary modifier |
-| `remove_modifiers(mods, stat_name)` | Remove all modifiers for a stat |
-| `add_to_container(world, parent, child)` | Put entity into container (respects capacity) |
-| `remove_from_container(world, parent, child)` | Take entity out |
-| `transfer(world, child, old_parent, new_parent)` | Move between containers |
-| `contents(world, parent)` / `parent_of(world, child)` | Query containment |
-| `register_colony_components(world)` | Register all colony types for snapshot/restore |
+| `add_modifier(mods, stat, amount, duration)` | Add a temporary modifier |
+| `add_to_container/remove_from_container/transfer/contents/parent_of` | Containment helpers |
 
-## Grid Pathfinding
+## ColonySnapshot
+
+Unified snapshot/restore that coordinates engine state with colony-specific objects:
 
 ```python
-grid = Grid(10, 10)
-path = grid.pathfind((0, 0), (5, 5), passable=lambda x, y: True)
-# Returns list of (x, y) tuples, or None if unreachable
+from tick_colony import ColonySnapshot, Grid2D, EventLog, CellMap, CellDef
+
+grid = Grid2D(20, 20)
+event_log = EventLog()
+cells = CellMap(default=CellDef(name="grass"))
+
+snapper = ColonySnapshot(grid=grid, event_log=event_log, cellmap=cells)
+
+# Snapshot
+data = snapper.snapshot(engine)
+
+# Restore (into new engine with fresh objects)
+snapper2 = ColonySnapshot(grid=grid2, event_log=event_log2, cellmap=cells2)
+snapper2.restore(engine2, data)
 ```
+
+All 6 parameters are optional. Snapshots taken before v0.3.0 (without cellmap/ability_manager/resource_registry keys) restore safely.
 
 ## Part of [tick-engine](../../README.md)
 

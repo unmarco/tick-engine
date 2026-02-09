@@ -17,11 +17,11 @@ from tick.types import TickContext
 
 from tick_colony import (
     Pos2D, NeedSet, NeedHelper, StatBlock, Modifiers,
-    Container, ContainedBy,
+    Inventory, InventoryHelper,
     Lifecycle, make_lifecycle_system,
     EventLog,
     make_need_decay_system, make_modifier_tick_system,
-    effective, add_modifier, add_to_container, remove_from_container, contents,
+    effective, add_modifier,
     register_colony_components,
 )
 from tick_schedule import Timer, make_timer_system
@@ -266,11 +266,10 @@ def on_timer_fire(world: World, ctx: TickContext, eid: int, timer: Timer) -> Non
         NeedHelper.set_value(needs, "hunger", NeedHelper.get_value(needs, "hunger") + 30.0)
         sp = scenario.stockpile_pos
         grid.move(eid, (sp[0], sp[1]))
-        food = world.spawn()
-        if world.has(stockpile_eid, Container):
-            add_to_container(world, stockpile_eid, food)
+        if world.has(stockpile_eid, Inventory):
+            InventoryHelper.add(world.get(stockpile_eid, Inventory), "food", 1)
         bus.publish("forage_done", tick=ctx.tick_number, colonist=name,
-                    food_stored=len(contents(world, stockpile_eid)))
+                    food_stored=InventoryHelper.count(world.get(stockpile_eid, Inventory), "food"))
     elif timer.name == "rest":
         NeedHelper.set_value(needs, "fatigue", NeedHelper.get_value(needs, "fatigue") + 40.0)
         if world.has(eid, Modifiers):
@@ -283,11 +282,10 @@ def on_timer_fire(world: World, ctx: TickContext, eid: int, timer: Timer) -> Non
     elif timer.name == "craft":
         hunger = NeedHelper.get_value(needs, "hunger")
         NeedHelper.set_value(needs, "hunger", hunger - 3.0)
-        item = world.spawn()
-        if world.has(stockpile_eid, Container):
-            add_to_container(world, stockpile_eid, item)
+        if world.has(stockpile_eid, Inventory):
+            InventoryHelper.add(world.get(stockpile_eid, Inventory), "craft_item", 1)
         bus.publish("craft_done", tick=ctx.tick_number, colonist=name,
-                    stockpile=len(contents(world, stockpile_eid)))
+                    stockpile=InventoryHelper.total(world.get(stockpile_eid, Inventory)))
     elif timer.name == "patrol":
         hunger = NeedHelper.get_value(needs, "hunger")
         fatigue = NeedHelper.get_value(needs, "fatigue")
@@ -343,8 +341,8 @@ def birth_system(world: World, ctx: TickContext) -> None:
     should_birth = False
 
     if scenario.birth_mode == "stockpile":
-        if world.alive(stockpile_eid) and world.has(stockpile_eid, Container):
-            stored = len(contents(world, stockpile_eid))
+        if world.alive(stockpile_eid) and world.has(stockpile_eid, Inventory):
+            stored = InventoryHelper.count(world.get(stockpile_eid, Inventory), "food")
             if stored >= scenario.birth_food_threshold:
                 should_birth = True
 
@@ -366,12 +364,8 @@ def _spawn_colonist(world: World, ctx: TickContext) -> None:
     """Spawn a new colonist from scenario config."""
     # Consume food if stockpile mode
     if scenario.birth_mode == "stockpile":
-        container = world.get(stockpile_eid, Container)
-        for _ in range(min(scenario.birth_food_cost, len(container.items))):
-            food_eid = container.items.pop()
-            if world.has(food_eid, ContainedBy):
-                world.detach(food_eid, ContainedBy)
-            world.despawn(food_eid)
+        inv = world.get(stockpile_eid, Inventory)
+        InventoryHelper.remove(inv, "food", scenario.birth_food_cost)
 
     name = _next_name(ctx.random)
     birth_counter[0] += 1
@@ -517,8 +511,8 @@ def print_report(world: World, tick: int, event_log: EventLog,
 
     # -- Summary --
     pop = sum(1 for _ in world.query(Colonist, NeedSet))
-    stored = len(contents(world, stockpile_eid)) if world.alive(stockpile_eid) else 0
-    cap = world.get(stockpile_eid, Container).capacity if world.has(stockpile_eid, Container) else 0
+    stored = InventoryHelper.total(world.get(stockpile_eid, Inventory)) if world.alive(stockpile_eid) else 0
+    cap = world.get(stockpile_eid, Inventory).capacity if world.has(stockpile_eid, Inventory) else 0
     print(f"\n  SUMMARY  pop: {pop}  stockpile: {stored}/{cap}  total events: {len(event_log)}")
 
 
@@ -528,7 +522,7 @@ def print_summary(world: World, engine: Engine, event_log: EventLog,
     pop = sum(1 for _ in world.query(Colonist, NeedSet))
     births = birth_counter[0]
     deaths = death_counter[0]
-    stored = len(contents(world, stockpile_eid)) if world.alive(stockpile_eid) else 0
+    stored = InventoryHelper.total(world.get(stockpile_eid, Inventory)) if world.alive(stockpile_eid) else 0
 
     print(f"\n=== SIMULATION SUMMARY (tick {tick}) ===")
     print(f"  Population:    {pop} / {scenario.max_population}")
@@ -578,7 +572,7 @@ def setup_engine(scn: VillageScenario, seed: int = 42) -> Engine:
     stockpile_eid = w.spawn()
     sp = scn.stockpile_pos
     w.attach(stockpile_eid, Pos2D(x=float(sp[0]), y=float(sp[1])))
-    w.attach(stockpile_eid, Container(items=[], capacity=scn.stockpile_capacity))
+    w.attach(stockpile_eid, Inventory(capacity=scn.stockpile_capacity))
     grid.place(stockpile_eid, (sp[0], sp[1]))
 
     # Colonists -- staggered initial values for variety

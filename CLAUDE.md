@@ -6,8 +6,8 @@ A uv workspace monorepo containing the tick engine and all its extension package
 
 ## Current Status
 
-- **Version**: 0.6.0
-- **Tests**: 991 passing across all 13 packages
+- **Version**: 0.7.0
+- **Tests**: 1020 passing across all 13 packages
 - **CI**: GitHub Actions (Python 3.11/3.12/3.13 matrix + mypy)
 - **Type checking**: mypy strict mode, all packages pass
 - **Repository**: https://github.com/unmarco/tick-engine
@@ -40,7 +40,7 @@ tick-engine/
 | Package | Import | Version | Description |
 |---------|--------|---------|-------------|
 | tick | `tick` | 0.2.1 | Core engine: loop, clock, world, systems |
-| tick-colony | `tick_colony` | 0.2.0 | Colony builder / roguelike simulation primitives |
+| tick-colony | `tick_colony` | 0.3.0 | Colony builder / roguelike simulation primitives |
 | tick-schedule | `tick_schedule` | 0.1.0 | Countdown timers and periodic triggers |
 | tick-fsm | `tick_fsm` | 0.1.0 | Declarative finite state machines |
 | tick-blueprint | `tick_blueprint` | 0.2.0 | Entity template registry (with meta) |
@@ -104,17 +104,21 @@ uv run mypy
 
 ## Dependency Graph
 
-Extensions depend on `tick>=0.2.1`. tick-colony depends on all 6 extension packages.
+Extensions depend on `tick>=0.2.1`. tick-colony depends on all 11 extension packages.
 
 ```
 tick >= 0.2.1
-  ├── tick-colony >= 0.2.0
+  ├── tick-colony >= 0.3.0
   │     ├── tick-spatial >= 0.2.0
   │     ├── tick-schedule >= 0.1.0
   │     ├── tick-fsm >= 0.1.0
   │     ├── tick-blueprint >= 0.1.0
   │     ├── tick-signal >= 0.1.0
-  │     └── tick-event >= 0.1.0
+  │     ├── tick-event >= 0.1.0
+  │     ├── tick-command >= 0.1.0
+  │     ├── tick-atlas >= 0.2.0
+  │     ├── tick-ability >= 0.1.0
+  │     └── tick-resource >= 0.1.0
   ├── tick-schedule
   ├── tick-fsm
   ├── tick-blueprint
