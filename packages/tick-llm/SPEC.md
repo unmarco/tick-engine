@@ -72,10 +72,10 @@ The architecture follows a three-tier AI model:
 - Response parsing with Blackboard integration
 - LLMClient protocol (abstract interface)
 - MockClient for deterministic testing
-- Rate limiting (per-tick and per-second)
+- Rate limiting (per-tick and per-second sliding window)
 - Error handling and graceful degradation
 - Observable callbacks (on_query, on_response, on_error)
-- System factory: `make_llm_system(manager)`
+- System factory: `make_llm_system(manager)` returning `LLMSystem`
 
 **Out of scope (future versions)**:
 - Batching multiple entities into a single LLM call
@@ -98,8 +98,8 @@ As a developer, I want to register roles, personalities, context templates, and 
 *Acceptance criteria*:
 - Roles, personalities, context templates, and parsers are registered by name
 - LLMAgent component references these names and specifies a query interval
-- The system validates that all referenced names exist when the first query fires
-- Missing definitions produce a logged warning and skip the query (no crash)
+- The system validates that all referenced names (role, personality, context, parser) exist at dispatch time -- before submitting to the thread pool
+- Missing definitions produce a logged warning, fire `on_error` with type `"missing_definition"`, and skip the query. They do **not** increment `consecutive_errors` or trigger cooldown (configuration errors are not runtime failures).
 
 **US-2: Non-blocking LLM queries**
 As a developer, I want LLM calls to execute asynchronously so that the tick loop never stalls waiting for a response.
@@ -142,7 +142,7 @@ As a developer, I want LLM errors (timeouts, API failures, malformed responses) 
 As a developer, I want callbacks for query dispatch, response receipt, and errors so that I can monitor costs, latency, and failure rates.
 
 *Acceptance criteria*:
-- `on_query` fires when a query is submitted, with entity ID, assembled prompt size, and tick number
+- `on_query` fires when a query is submitted, with entity ID, assembled prompt size (in characters: `len(system_prompt) + len(user_message)`), and tick number
 - `on_response` fires when a response is received, with entity ID, latency, response size, and tick number
 - `on_error` fires on any failure, with entity ID, error type, error message, and tick number
 
@@ -163,15 +163,14 @@ As a developer, I want a mock LLM client that returns deterministic responses so
 - LLMClient protocol
 - Non-blocking query lifecycle via ThreadPoolExecutor
 - Blackboard write-through on response
-- `make_llm_system(manager)` factory
+- `make_llm_system(manager)` factory returning `LLMSystem` (callable + `shutdown()`)
 - `on_query` / `on_response` / `on_error` callbacks
-- Rate limiting (per-tick)
+- Rate limiting (per-tick and per-second sliding window)
 - Error handling with retry logic
 - MockClient for testing
 - Default JSON parser
 
 **Should have**:
-- Per-second sliding-window rate limiting
 - Cooldown period after max retries
 - Query priority (some entities more important than others)
 - Configurable thread pool size
@@ -210,10 +209,10 @@ While a query is pending, the entity's BT/utility system continues executing aga
 Responses are delivered on the next tick AFTER the future completes. The system never processes futures mid-tick. This ensures consistent world state during a tick.
 
 **BR-5: Error escalation**
-On query failure: increment `agent.consecutive_errors`. If `consecutive_errors >= agent.max_retries`, set `agent.cooldown_until = tick_number + agent.cooldown_ticks`. On successful response, reset `consecutive_errors` to 0.
+On **runtime** query failure (network error, API error, timeout, parse error): increment `agent.consecutive_errors`. If `consecutive_errors >= agent.max_retries`, set `agent.cooldown_until = tick_number + agent.cooldown_ticks`. On successful response, reset `consecutive_errors` to 0. **Configuration errors** (missing definitions, missing Blackboard, missing client) do **not** increment `consecutive_errors` or trigger cooldown -- they are reported via `on_error` and logged but do not affect the agent's retry state.
 
 **BR-6: Thread pool lifecycle**
-The ThreadPoolExecutor is created when `make_llm_system()` is called and should be shut down when the engine stops. The system factory accepts an optional `on_shutdown` hook, or the caller manages the executor externally.
+The ThreadPoolExecutor is created when `make_llm_system()` is called. The returned `LLMSystem` exposes a `shutdown()` method that calls `executor.shutdown(wait=False)`, discards all pending futures, and sets an internal flag so that subsequent `__call__` invocations are no-ops. Callers should invoke `system.shutdown()` when the engine stops.
 
 ---
 
@@ -279,10 +278,11 @@ Blackboard (from tick-ai, attached to same entity)
   |-- data: dict[str, Any]
   |-- (written to by parser after LLM response)
 
-make_llm_system(manager) -> System
+make_llm_system(manager) -> LLMSystem
   |-- creates ThreadPoolExecutor
-  |-- returns (World, TickContext) -> None callable
+  |-- returns LLMSystem (callable with __call__ and shutdown())
   |-- manages _pending_futures: dict[int, Future]
+  |-- _shutdown: bool (no-ops after shutdown)
 ```
 
 ### 3.3 Technology Stack
@@ -321,7 +321,7 @@ This preserves the "stdlib only" philosophy: tick-llm itself has no external dep
 | personality | str | (required) | Name of the personality definition in LLMManager |
 | context | str | (required) | Name of the context template in LLMManager |
 | parser | str | "" | Name of the parser in LLMManager; empty string = default JSON parser |
-| query_interval | int | 100 | Minimum ticks between queries (100 ticks at 20 TPS = 5 seconds) |
+| query_interval | int | 100 | Minimum ticks between queries (100 ticks at 20 TPS = 5 seconds). A value of 0 means "query as fast as rate limits allow" -- the entity is eligible every tick, subject to per-tick and per-second caps. |
 | priority | int | 0 | Query priority; higher values are queried first when rate-limited |
 | last_query_tick | int | 0 | Tick number of most recent query dispatch |
 | pending | bool | False | True while a query is in flight |
@@ -357,7 +357,7 @@ This preserves the "stdlib only" philosophy: tick-llm itself has no external dep
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | max_queries_per_tick | int | 1 | Max new queries dispatched per tick |
-| max_queries_per_second | int | 5 | Sliding-window rate limit (should-have) |
+| max_queries_per_second | int | 5 | Sliding-window rate limit across ticks. The effective maximum query rate is `min(max_queries_per_tick * TPS, max_queries_per_second)`. At the defaults (1 per tick, 5 per second), the per-second limit only kicks in at TPS > 5. |
 | thread_pool_size | int | 4 | ThreadPoolExecutor max workers |
 | query_timeout | float | 30.0 | Seconds before a pending query is considered timed out |
 
@@ -438,7 +438,7 @@ Central registry following the same pattern as AIManager.
 
 | Method | Callback Signature | Description |
 |--------|-------------------|-------------|
-| `on_query` | (eid: int, prompt_size: int, tick: int) -> None | Fired when a query is dispatched |
+| `on_query` | (eid: int, prompt_size: int, tick: int) -> None | Fired when a query is dispatched. `prompt_size` is character count: `len(system_prompt) + len(user_message)`. |
 | `on_response` | (eid: int, latency: float, response_size: int, tick: int) -> None | Fired when a response is received |
 | `on_error` | (eid: int, error_type: str, error_msg: str, tick: int) -> None | Fired on any failure |
 
@@ -448,29 +448,33 @@ Central registry following the same pattern as AIManager.
 |--------|-----------|---------|-------------|
 | `assemble_prompt` | world: World, eid: int, agent: LLMAgent | (str, str) or None | Returns (system_prompt, user_message) or None if definitions missing |
 
-Prompt assembly concatenates `role_text + "\n\n" + personality_text` for the system prompt. The user message is the return value of the context function. If any referenced definition is missing, returns None and logs a warning.
+Prompt assembly concatenates `role_text + "\n\n" + personality_text` for the system prompt. The user message is the return value of the context function. If any referenced definition (role, personality, context) is missing, returns None and logs a warning. Note: the parser name is validated at **dispatch time** (before submitting to the thread pool), not during prompt assembly, so that a missing parser is caught immediately rather than at harvest time potentially hundreds of ticks later.
 
 ### 5.3 System Factory
 
-**`make_llm_system(manager: LLMManager) -> System`**
+**`make_llm_system(manager: LLMManager) -> LLMSystem`**
 
-Returns a `(World, TickContext) -> None` callable that manages the full async query lifecycle. Internally creates the ThreadPoolExecutor.
+Returns an `LLMSystem` instance -- a callable object with `__call__(self, world: World, ctx: TickContext) -> None` and a `shutdown(self) -> None` method. The `__call__` signature satisfies the `System` protocol, so `LLMSystem` can be passed directly to `engine.add_system()`. Internally creates the ThreadPoolExecutor.
 
 The system performs these steps on each tick, in order:
 
 1. **Harvest**: Check all pending futures for completion. For each completed future:
+   - If the entity no longer exists in the World, or the entity no longer has an `LLMAgent` or `Blackboard` component, silently discard the response (no parser invocation, no callbacks). Remove the future from the pending map.
    - If successful: invoke the parser, write to Blackboard, fire `on_response`, clear `pending`, reset `consecutive_errors`
    - If failed: fire `on_error`, increment `consecutive_errors`, apply cooldown if threshold reached, clear `pending`
 
 2. **Timeout**: Check all pending futures for timeout. Cancel timed-out futures and treat as errors.
 
-3. **Dispatch**: Query eligible entities (sorted by priority descending), up to `max_queries_per_tick`:
+3. **Dispatch**: Query eligible entities (sorted by priority descending, ties broken by entity ID ascending for determinism), up to `max_queries_per_tick` and within `max_queries_per_second`:
+   - Validate that all referenced definition names (role, personality, context, parser) exist in the manager. If any are missing, skip the entity with a logged warning and fire `on_error` with type `"missing_definition"`. **Do not** increment `consecutive_errors` or set `pending` (this is a configuration error, not a runtime failure).
    - Assemble prompt via `manager.assemble_prompt()`
    - Submit to thread pool
    - Set `agent.pending = True`, update `agent.last_query_tick`
    - Fire `on_query` callback
 
-The system factory also returns or exposes a `shutdown()` mechanism for the ThreadPoolExecutor. One approach: the system callable has a `.shutdown()` attribute. Another: the manager owns the executor. Design decision deferred to implementation -- the spec requires that clean shutdown is possible.
+**`LLMSystem.shutdown(self) -> None`**
+
+Shuts down the internal ThreadPoolExecutor with `wait=False` (in-flight queries are abandoned, not awaited). All pending futures are discarded. After shutdown, subsequent `__call__` invocations are no-ops (no queries dispatched, no futures harvested). Document that callers should invoke `system.shutdown()` on engine stop or use the `engine.on_stop()` hook.
 
 ### 5.4 Default JSON Parser
 
@@ -478,7 +482,7 @@ When `agent.parser` is empty string, the system uses a built-in default parser t
 1. Strips markdown code fences if present (` ```json ... ``` `)
 2. Parses the response as JSON
 3. Expects a top-level dict
-4. Merges all key-value pairs into `blackboard.data` (shallow merge)
+4. Shallow-merges all key-value pairs into `blackboard.data["strategy"]` (creating the `"strategy"` key if it doesn't exist). This matches the Blackboard namespace convention documented in Section 7.1.
 5. On parse failure: fires `on_error`, does not modify Blackboard
 
 ### 5.5 MockClient
@@ -518,6 +522,7 @@ The system should add negligible overhead to the tick loop. The expensive work (
 - **Stale strategy is valid strategy**: Entities are always functional, even if their strategic layer is down. The BT/utility layer operates independently.
 - **Timeout protection**: Queries exceeding `query_timeout` are cancelled to prevent thread pool exhaustion.
 - **Cooldown prevents retry storms**: After `max_retries` failures, the entity backs off for `cooldown_ticks`, preventing rapid-fire retries against a down API.
+- **Callback error isolation**: All callback invocations (`on_query`, `on_response`, `on_error`) and parser invocations are wrapped in try/except. Exceptions in callbacks are logged to stderr and do not affect system operation. An exception in `on_error` is logged and swallowed. A parser exception is caught, logged, routed through `on_error`, and treated as a failed query (increments `consecutive_errors`).
 
 ### 6.3 Security
 
@@ -541,7 +546,7 @@ These can be wired to logging, metrics, or dashboards by the consumer.
 - Zero-latency mode means tests run at full speed
 - Error simulation (configurable error rate) tests degradation paths
 - All public methods are independently testable
-- The system factory returns a plain callable -- easy to invoke in test harnesses
+- The system factory returns an `LLMSystem` instance -- callable and easy to invoke in test harnesses
 
 ---
 
@@ -628,7 +633,7 @@ This ensures that freshly harvested LLM responses are available to the BT/utilit
 | API error | LLMClient raises provider-specific error (rate limit, auth, etc.) | Same as network error |
 | Timeout | Future not complete after query_timeout seconds | Cancel future, treat as error |
 | Parse error | ParserFn raises exception or JSON decode fails | Fire on_error, do not modify Blackboard, increment consecutive_errors |
-| Missing definition | Role/personality/context name not found in manager | Skip query, fire on_error with "missing_definition" type, do not set pending |
+| Missing definition | Role/personality/context/parser name not found in manager | Configuration error: skip query, log warning, fire on_error with "missing_definition" type. **Do not** set pending, **do not** increment consecutive_errors. The entity retries next interval (the developer will see repeated warnings). |
 | Missing Blackboard | Entity has LLMAgent but no Blackboard component | Skip entity entirely (warning-level, not error) |
 | Missing client | No client registered on manager | Skip all queries, fire on_error once per tick with "no_client" type |
 
@@ -746,7 +751,7 @@ packages/tick-llm/
         config.py            -- LLMConfig dataclass
         client.py            -- LLMClient protocol, MockClient
         manager.py           -- LLMManager registry
-        systems.py           -- make_llm_system() factory
+        systems.py           -- LLMSystem class, make_llm_system() factory
         parsers.py           -- default JSON parser, utility helpers
     tests/
         __init__.py
@@ -779,20 +784,20 @@ packages/tick-llm/
 - Unit tests for all of the above
 
 **Phase 2: System**
-- make_llm_system() factory
+- LLMSystem class with `__call__` and `shutdown()`
+- `make_llm_system()` factory
 - ThreadPoolExecutor integration
-- Future harvesting and dispatch logic
-- Rate limiting (per-tick)
-- Error handling and retry logic
+- Future harvesting and dispatch logic (including despawned/detached entity handling)
+- Rate limiting (per-tick and per-second sliding window)
+- Error handling, retry logic, and callback error isolation
 - Integration tests with MockClient
 
 **Phase 3: Observability and Polish**
 - on_query / on_response / on_error callbacks
 - Timeout detection and cancellation
 - Cooldown state machine
-- Per-second rate limiting (should-have)
-- Priority-based dispatch ordering
-- Edge case tests (despawned entities, detached components mid-query)
+- Priority-based dispatch ordering (with entity ID tie-breaking)
+- Edge case tests (despawned entities, detached components mid-query, query_interval=0)
 
 ### 10.4 Testing Approach
 
@@ -817,7 +822,7 @@ packages/tick-llm/
 - Referenced role/personality/context/parser name missing from manager
 - Parser raises exception
 - Client not registered
-- Zero query_interval (query every tick)
+- Zero query_interval (query every tick, subject to rate limits)
 - Multiple entities with same role/personality/context but different parsers
 
 ### 10.5 Type Checking
@@ -851,23 +856,19 @@ packages/tick-llm/
 | Blackboard key collisions | Low | Document "strategy" namespace convention. Not enforced -- user's responsibility. |
 | Over-engineering for v0.1.0 | Medium | Strict MoSCoW prioritization. Batching, caching, streaming deferred to future versions. |
 
-### 11.3 Open Questions
+### 11.3 Resolved Design Decisions
 
-1. **Executor ownership**: Should the ThreadPoolExecutor be created by `make_llm_system()` (system owns it) or by `LLMManager` (manager owns it)? System ownership is simpler but makes shutdown less accessible. Manager ownership centralizes lifecycle but adds state to what should be a registry.
+1. **Executor ownership** (resolved): `make_llm_system()` creates the ThreadPoolExecutor. The returned `LLMSystem` object exposes both `__call__(world, ctx)` (satisfying the System protocol) and `shutdown()`. Callers invoke `system.shutdown()` on engine stop. See Section 5.3.
 
-   *Recommendation*: System creates it, system callable exposes a `shutdown()` attribute. Document that callers should invoke `system.shutdown()` on engine stop or use the `engine.on_stop()` hook.
+2. **Query cancellation on despawn** (resolved): Responses for despawned entities (or entities whose `LLMAgent`/`Blackboard` was removed) are silently discarded at harvest time. `future.cancel()` only prevents execution if the future hasn't started -- it cannot interrupt a blocking HTTP call. Checking alive-ness at harvest is simpler and covers all cases. See Section 5.3 Harvest step.
 
-2. **Query cancellation on despawn**: When an entity is despawned while a query is pending, should the future be cancelled immediately (via `future.cancel()`)? Or should the response be silently discarded at harvest time?
+3. **Multiple clients** (resolved): One client per manager for v0.1.0. Multiple managers can be created for multiple clients, each with its own `LLMSystem`. This avoids complexity and follows the tick-engine pattern of simple registries. Multi-client routing is a v0.3.0 candidate (see Appendix C).
 
-   *Recommendation*: Discard at harvest time. `future.cancel()` only prevents execution if the future hasn't started -- it cannot interrupt a blocking HTTP call. Checking alive-ness at harvest is simpler and covers all cases.
+4. **Snapshot/restore** (resolved): LLMAgent is a plain dataclass and serializes normally via `World.snapshot()`. In-flight queries are lost on restore (`pending` resets to False). Document this behavior.
 
-3. **Multiple clients**: Should LLMManager support multiple named clients (e.g., "fast" for GPT-4o-mini, "smart" for Claude), selectable per agent? Or one client per manager?
+### 11.4 Open Questions
 
-   *Recommendation*: One client per manager for v0.1.0. Multiple managers can be created for multiple clients, each with its own system. This avoids complexity and follows the tick-engine pattern of simple registries.
-
-4. **Snapshot/restore**: Should LLMAgent state (last_query_tick, consecutive_errors, cooldown_until) be serializable? In-flight futures cannot be serialized, but the agent metadata can.
-
-   *Recommendation*: Yes, LLMAgent should be a plain dataclass and serialize normally via World.snapshot(). In-flight queries are lost on restore (pending resets to False). Document this behavior.
+None remaining for v0.1.0.
 
 ---
 
@@ -921,7 +922,7 @@ This two-message structure (system + user) is universal across LLM providers (Op
 |--------|--------------------|-----------------------|
 | Definitions | Trees, actions, conditions, considerations | Roles, personalities, contexts, parsers |
 | Component | BehaviorTree, UtilityAgent | LLMAgent |
-| System | make_bt_system, make_utility_system | make_llm_system |
+| System | make_bt_system, make_utility_system | make_llm_system -> LLMSystem |
 | Execution | Synchronous, every tick | Async (ThreadPoolExecutor), every N ticks |
 | Data bridge | Blackboard (read) | Blackboard (write) |
 | Callbacks | on_status, on_select | on_query, on_response, on_error |
