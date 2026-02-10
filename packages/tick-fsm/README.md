@@ -99,6 +99,10 @@ engine.world.attach(e, FSM(
 - `history` is auto-managed -- tracks the last active child per parent for re-entry
 - Transitions climb the dot hierarchy looking for matching guards (child first, then parent)
 
+## See Also
+
+For more complex AI behaviors -- behavior trees, utility scoring, and per-entity blackboards -- see [tick-ai](../tick-ai/). tick-fsm remains ideal for simpler state modeling (UI states, game phases, entity modes).
+
 ## Part of [tick-engine](../../README.md)
 
 MIT License
