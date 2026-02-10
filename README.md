@@ -22,6 +22,7 @@ The engine and all extensions use only the Python standard library. No external 
 | [tick-command](packages/tick-command/) | `tick_command` | 0.1.0 | Typed command queue (handlers, footprints) |
 | [tick-resource](packages/tick-resource/) | `tick_resource` | 0.1.0 | Typed resource inventories (recipes, decay) |
 | [tick-physics](packages/tick-physics/) | `tick_physics` | 0.1.0 | N-dimensional kinematics and collision detection |
+| [tick-ai](packages/tick-ai/) | `tick_ai` | 0.1.0 | Behavior trees, utility AI, and blackboard |
 
 ## Quick Start
 
@@ -88,7 +89,8 @@ tick >= 0.2.1
   ├── tick-ability >= 0.1.0
   ├── tick-command >= 0.1.0
   ├── tick-resource >= 0.1.0
-  └── tick-physics >= 0.1.0
+  ├── tick-physics >= 0.1.0
+  └── tick-ai >= 0.1.0
 ```
 
 ## Examples
@@ -128,6 +130,7 @@ uv run --package tick-ability pytest
 uv run --package tick-command pytest
 uv run --package tick-resource pytest
 uv run --package tick-physics pytest
+uv run --package tick-ai pytest
 ```
 
 Requires Python 3.11+.
