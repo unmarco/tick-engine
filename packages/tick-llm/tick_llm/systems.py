@@ -20,8 +20,7 @@ from tick_llm.manager import LLMManager, ParserFn
 from tick_llm.parsers import default_json_parser
 
 if TYPE_CHECKING:
-    from tick import World
-    from tick.clock import TickContext
+    from tick import TickContext, World
 
 
 @dataclass(frozen=True)
