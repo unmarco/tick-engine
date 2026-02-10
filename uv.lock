@@ -14,6 +14,7 @@ members = [
     "tick-engine",
     "tick-event",
     "tick-fsm",
+    "tick-llm",
     "tick-physics",
     "tick-resource",
     "tick-schedule",
@@ -298,7 +299,7 @@ requires-dist = [{ name = "tick", editable = "packages/tick" }]
 
 [[package]]
 name = "tick-engine"
-version = "0.9.0"
+version = "0.12.0"
 source = { virtual = "." }
 
 [package.dev-dependencies]
@@ -336,6 +337,21 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "tick", editable = "packages/tick" }]
+
+[[package]]
+name = "tick-llm"
+version = "0.1.0"
+source = { editable = "packages/tick-llm" }
+dependencies = [
+    { name = "tick" },
+    { name = "tick-ai" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "tick", editable = "packages/tick" },
+    { name = "tick-ai", editable = "packages/tick-ai" },
+]
 
 [[package]]
 name = "tick-physics"
