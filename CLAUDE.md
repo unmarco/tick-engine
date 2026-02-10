@@ -7,7 +7,7 @@ A uv workspace monorepo containing the tick engine and all its extension package
 ## Current Status
 
 - **Version**: 0.11.0
-- **Tests**: 1399 passing across all 15 packages
+- **Tests**: 1544 passing across all 16 packages
 - **CI**: GitHub Actions (Python 3.11/3.12/3.13 matrix + mypy)
 - **Type checking**: mypy strict mode, all packages pass
 - **Repository**: https://github.com/unmarco/tick-engine
@@ -34,7 +34,8 @@ tick-engine/
 │   ├── tick-command/          # typed command queue
 │   ├── tick-resource/         # typed resource inventories
 │   ├── tick-physics/          # kinematics + collision detection
-│   └── tick-ai/              # behavior trees + utility AI + blackboard
+│   ├── tick-ai/              # behavior trees + utility AI + blackboard
+│   └── tick-llm/             # async LLM strategic layer
 ```
 
 ## Packages
@@ -56,6 +57,7 @@ tick-engine/
 | tick-resource | `tick_resource` | 0.1.0 | Typed resource inventories (recipes, decay) |
 | tick-physics | `tick_physics` | 0.1.0 | N-dimensional kinematics and collision detection |
 | tick-ai | `tick_ai` | 0.1.0 | Behavior trees, utility AI, and blackboard |
+| tick-llm | `tick_llm` | 0.1.0 | Async LLM strategic layer (roles, parsers, thread pool) |
 
 ## Versioning Strategy
 
@@ -103,6 +105,7 @@ uv run --package tick-command pytest
 uv run --package tick-resource pytest
 uv run --package tick-physics pytest
 uv run --package tick-ai pytest
+uv run --package tick-llm pytest
 
 # Type checking
 uv run mypy
@@ -118,7 +121,7 @@ uv run mypy
 | `examples/physics-sandbox/` | tick, tick-physics | Interactive 2D collision sandbox |
 | `examples/ecosystem-arena/` | tick, tick-ai, tick-physics | Predator-prey ecosystem with BTs + utility AI |
 
-All 15 packages have pygame demo coverage.
+All 16 packages have pygame demo coverage (tick-llm via ecosystem-arena or standalone).
 
 ```bash
 # Run any demo
@@ -157,5 +160,7 @@ tick >= 0.2.1
   ├── tick-command >= 0.1.0
   ├── tick-resource >= 0.1.0
   ├── tick-physics >= 0.1.0
-  └── tick-ai >= 0.1.0
+  ├── tick-ai >= 0.1.0
+  └── tick-llm >= 0.1.0
+        └── tick-ai >= 0.1.0
 ```
