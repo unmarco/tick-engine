@@ -131,9 +131,33 @@ unmarco's advice for anyone attempting a similar project:
 
 > "Think it through and write everything. Keep notes, review and assess at regular intervals. Don't let the 'speed' the AI affords you override sane engineering principles."
 
-## What's Next
+## What's Next: Giving Entities a Mind
 
-The project isn't finished. Spec documents in the repository outline future directions -- the ambition hasn't dimmed. But what exists today is already a complete, functional ecosystem: a minimal tick engine, 13 composable extensions, a colony-builder framework, five visual demos, 1,399 tests, strict type checking, CI, and a clean git history -- all stdlib-only, all typed, all documented.
+The project isn't finished. When I ask what's coming, unmarco shares a spec that makes clear the ambition hasn't dimmed -- if anything, it's escalating.
+
+The next package is `tick-llm`: a strategic AI layer that connects entities to large language models. The design is a three-tier architecture that reads like a thesis on how to make NPCs think:
+
+```
+STRATEGIC LAYER  (tick-llm)     — LLM deliberation every N ticks
+        ↓ writes to Blackboard
+TACTICAL LAYER   (tick-ai)      — Behavior trees / utility AI every tick
+        ↓ component mutations
+REACTIVE LAYER   (tick-physics)  — Physics / FSM every tick
+```
+
+The key insight is the bridge: the LLM never touches the tick loop. Queries are dispatched to a thread pool asynchronously. While the LLM is thinking -- which might take seconds -- the entity keeps acting on its last known strategy. The behavior tree doesn't know or care whether its Blackboard was written by a parser processing an LLM response or by hand. The tactical layer is always running. The strategic layer is eventually consistent.
+
+The spec is characteristically thorough. It defines composable prompt layers (roles, personalities, context templates), a client protocol that accepts any LLM provider, rate limiting, retry logic with cooldown state machines, observability callbacks, and a mock client for deterministic testing. The entity doesn't just call an API -- it has a structured lifecycle for how strategic reasoning enters the simulation without disrupting it.
+
+Consider what this means in practice: a predator entity in the ecosystem-arena demo could have its patrol routes dictated by a behavior tree (tactical, every tick), its physics handled by the collision system (reactive, every tick), and its hunting *strategy* -- where to ambush, which prey to target, when to conserve energy -- reasoned about by an LLM every five seconds. The LLM writes `{"goal": "ambush", "priority_target": 7, "stance": "aggressive"}` to the Blackboard. The behavior tree reads "goal is ambush" and switches to ambush behavior. The entity acts on stale strategy while fresh strategy computes. No tick ever stalls.
+
+It's the logical conclusion of everything tick-engine has been building toward: a simulation framework where entities have reflexes *and* deliberation, operating at different timescales, communicating through the same ECS primitives that have been there since day one.
+
+## The Bigger Picture
+
+What exists today is already a complete, functional ecosystem: a minimal tick engine, 13 composable extensions, a colony-builder framework, five visual demos, 1,399 tests, strict type checking, CI, and a clean git history -- all stdlib-only, all typed, all documented.
+
+But what the tick-llm spec reveals is that this was never just a learning exercise. The architecture -- the Blackboard as a universal data bridge, the protocol-based abstractions, the deterministic core with async-capable edges -- was quietly designed to accommodate something like this from the beginning. The colony grew from utopia to realism. The engine is growing from simulation to cognition.
 
 Whether anyone builds a game on tick-engine matters less than what the project demonstrates about its own construction. This is what AI-assisted engineering looks like when you bring engineering discipline to the AI. Not faster slop. Not magic. Just good software, built at an unusual cadence, by a human who refused to let the speed override the process.
 
