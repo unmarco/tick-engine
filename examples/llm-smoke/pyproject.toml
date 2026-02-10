@@ -1,0 +1,14 @@
+[project]
+name = "llm-smoke"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "tick>=0.3.0",
+    "tick-ai>=0.1.0",
+    "tick-llm>=0.1.0",
+]
+
+[tool.uv.sources]
+tick = { path = "../../packages/tick", editable = true }
+tick-ai = { path = "../../packages/tick-ai", editable = true }
+tick-llm = { path = "../../packages/tick-llm", editable = true }
