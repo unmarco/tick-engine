@@ -6,7 +6,7 @@ A uv workspace monorepo containing the tick engine and all its extension package
 
 ## Current Status
 
-- **Version**: 0.9.0
+- **Version**: 0.10.0
 - **Tests**: 1399 passing across all 15 packages
 - **CI**: GitHub Actions (Python 3.11/3.12/3.13 matrix + mypy)
 - **Type checking**: mypy strict mode, all packages pass
@@ -106,6 +106,25 @@ uv run --package tick-ai pytest
 
 # Type checking
 uv run mypy
+```
+
+## Pygame Demos
+
+| Demo | Packages | Description |
+|------|----------|-------------|
+| `examples/placement/` | tick, tick-command, tick-spatial, tick-atlas, tick-blueprint | Grid placement with blueprints and terrain |
+| `examples/easing-gallery/` | tick, tick-tween, tick-fsm, tick-schedule, tick-signal | Easing function showcase |
+| `examples/colony-sim/` | All 13 original packages | Colony builder visual chronicle |
+| `examples/physics-sandbox/` | tick, tick-physics | Interactive 2D collision sandbox |
+| `examples/ecosystem-arena/` | tick, tick-ai, tick-physics | Predator-prey ecosystem with BTs + utility AI |
+
+All 15 packages have pygame demo coverage.
+
+```bash
+# Run any demo
+cd examples/<demo-name>
+uv sync
+uv run python main.py
 ```
 
 ## Dependency Graph
