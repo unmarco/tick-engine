@@ -53,7 +53,7 @@ engine.run(1)
 ### FSM
 
 ```python
-FSM(state: str, transitions: dict[str, list[list[str]]])
+FSM(state: str, transitions: dict[str, list[list[str]]], initial: dict[str, str] = {}, history: dict[str, str] = {})
 ```
 
 Dataclass component. The `transitions` dict maps each state to a list of `[guard_name, target_state]` pairs. On each tick, the first matching guard wins. One transition per entity per tick.
@@ -77,6 +77,27 @@ make_fsm_system(guards: FSMGuards, on_transition=None) -> System
 ```
 
 Returns a system that queries all `FSM` components and evaluates their transitions. The optional `on_transition` callback receives `(world, ctx, eid, old_state, new_state)`.
+
+## Hierarchical States
+
+Use dot-notation for nested states. Parent transitions act as fallbacks for child states.
+
+```python
+engine.world.attach(e, FSM(
+    state="combat.melee",
+    transitions={
+        "combat.melee":  [["out_of_range", "combat.ranged"]],
+        "combat.ranged": [["in_range", "combat.melee"]],
+        "combat":        [["is_peaceful", "idle"]],       # fallback for all combat.*
+        "idle":          [["is_threatened", "combat"]],    # re-enters via initial
+    },
+    initial={"combat": "combat.melee"},  # default child on entry
+))
+```
+
+- `initial` maps parent states to their default child when entering from outside
+- `history` is auto-managed -- tracks the last active child per parent for re-entry
+- Transitions climb the dot hierarchy looking for matching guards (child first, then parent)
 
 ## Part of [tick-engine](../../README.md)
 

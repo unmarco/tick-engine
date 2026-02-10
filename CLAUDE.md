@@ -7,7 +7,7 @@ A uv workspace monorepo containing the tick engine and all its extension package
 ## Current Status
 
 - **Version**: 0.8.0
-- **Tests**: 1126 passing across all 13 packages
+- **Tests**: 1207 passing across all 14 packages
 - **CI**: GitHub Actions (Python 3.11/3.12/3.13 matrix + mypy)
 - **Type checking**: mypy strict mode, all packages pass
 - **Repository**: https://github.com/unmarco/tick-engine
@@ -32,7 +32,8 @@ tick-engine/
 │   ├── tick-atlas/            # cell/tile property maps
 │   ├── tick-ability/          # player-triggered abilities
 │   ├── tick-command/          # typed command queue
-│   └── tick-resource/         # typed resource inventories
+│   ├── tick-resource/         # typed resource inventories
+│   └── tick-physics/          # kinematics + collision detection
 ```
 
 ## Packages
@@ -52,6 +53,7 @@ tick-engine/
 | tick-ability | `tick_ability` | 0.1.0 | Player-triggered abilities (charges, cooldowns, effects) |
 | tick-command | `tick_command` | 0.1.0 | Typed command queue (handlers, footprints) |
 | tick-resource | `tick_resource` | 0.1.0 | Typed resource inventories (recipes, decay) |
+| tick-physics | `tick_physics` | 0.1.0 | N-dimensional kinematics and collision detection |
 
 ## Versioning Strategy
 
@@ -97,6 +99,7 @@ uv run --package tick-atlas pytest
 uv run --package tick-ability pytest
 uv run --package tick-command pytest
 uv run --package tick-resource pytest
+uv run --package tick-physics pytest
 
 # Type checking
 uv run mypy
@@ -130,5 +133,6 @@ tick >= 0.2.1
   │     └── tick-spatial >= 0.2.0
   ├── tick-ability >= 0.1.0
   ├── tick-command >= 0.1.0
-  └── tick-resource >= 0.1.0
+  ├── tick-resource >= 0.1.0
+  └── tick-physics >= 0.1.0
 ```
