@@ -6,7 +6,7 @@ A uv workspace monorepo containing the tick engine and all its extension package
 
 ## Current Status
 
-- **Version**: 0.11.0
+- **Version**: 0.12.0
 - **Tests**: 1544 passing across all 16 packages
 - **CI**: GitHub Actions (Python 3.11/3.12/3.13 matrix + mypy)
 - **Type checking**: mypy strict mode, all packages pass
@@ -121,7 +121,14 @@ uv run mypy
 | `examples/physics-sandbox/` | tick, tick-physics | Interactive 2D collision sandbox |
 | `examples/ecosystem-arena/` | tick, tick-ai, tick-physics | Predator-prey ecosystem with BTs + utility AI |
 
-All 16 packages have pygame demo coverage (tick-llm via ecosystem-arena or standalone).
+### LLM Examples (requires LM Studio or compatible endpoint)
+
+| Demo | Packages | Description |
+|------|----------|-------------|
+| `examples/llm-smoke/` | tick, tick-ai, tick-llm | Mock + LM Studio smoke tests with episodic memory |
+| `examples/llm-roundtable/` | tick, tick-ai, tick-llm | Multi-agent structured debate (4 LLM agents, round-robin turns) |
+
+All 16 packages have demo coverage.
 
 ```bash
 # Run any demo
