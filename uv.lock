@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.11"
 
 [manifest]
@@ -255,7 +255,7 @@ requires-dist = [{ name = "tick", editable = "packages/tick" }]
 
 [[package]]
 name = "tick-colony"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "packages/tick-colony" }
 dependencies = [
     { name = "tick" },
@@ -303,7 +303,7 @@ requires-dist = [{ name = "tick", editable = "packages/tick" }]
 
 [[package]]
 name = "tick-engine"
-version = "0.12.0"
+version = "0.14.0"
 source = { virtual = "." }
 
 [package.dev-dependencies]

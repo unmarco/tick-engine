@@ -14,7 +14,7 @@ import tick_colony
 
 ## Adopted Extensions
 
-tick-colony re-exports the public APIs of all 11 extension packages so colony users can import everything from one place:
+tick-colony re-exports the public APIs of all extension packages (including tick-ai and tick-llm) so colony users can import everything from one place:
 
 | Package | Re-exports |
 |---------|------------|
@@ -28,6 +28,26 @@ tick-colony re-exports the public APIs of all 11 extension packages so colony us
 | tick-atlas | `CellDef`, `CellMap` |
 | tick-ability | `AbilityDef`, `AbilityState`, `AbilityGuards`, `AbilityManager`, `make_ability_system` |
 | tick-resource | `Inventory`, `InventoryHelper`, `Recipe`, `ResourceDef`, `ResourceRegistry`, `can_craft`, `craft`, `make_resource_decay_system` |
+| tick-ai | `AIManager`, `BehaviorTree`, `Blackboard`, `UtilityAgent`, `Status`, `Node`, `make_bt_system`, `make_utility_system` |
+| tick-llm | `LLMAgent`, `LLMClient`, `LLMConfig`, `LLMManager`, `MockClient`, `make_llm_system` |
+
+## LLM Integration (0.4.0+)
+
+Colony-specific context builders, directive parsers, and a pressure system for LLM-driven strategic gameplay:
+
+| Module | Exports | Description |
+|--------|---------|-------------|
+| `context` | `make_resource_context`, `make_population_context`, `make_spatial_context`, `make_event_context`, `make_colony_context` | Context builder factories for LLM prompt assembly |
+| `directive` | `make_directive_parser`, `DirectiveHandler` | Structured directive parsing from LLM JSON responses |
+| `pressure` | `make_pressure_system`, `PressureThresholds` | Pressure monitor that resets LLM cooldowns on significant state changes |
+
+The chronicle demo (`examples/chronicle.py`) showcases 4 LLM agents (Steward, Builder, Warden, Narrator) with MockClient and real LLM endpoint support:
+
+```bash
+uv run --package tick-colony python -m examples.chronicle --mock       # deterministic mock
+uv run --package tick-colony python -m examples.chronicle --llm        # real LLM endpoint
+uv run --package tick-colony python -m examples.chronicle --no-llm     # original behavior
+```
 
 ## Colony Components
 

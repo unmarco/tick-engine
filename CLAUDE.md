@@ -6,7 +6,7 @@ A uv workspace monorepo containing the tick engine and all its extension package
 
 ## Current Status
 
-- **Version**: 0.12.0
+- **Version**: 0.14.0
 - **Tests**: 1544 passing across all 16 packages
 - **CI**: GitHub Actions (Python 3.11/3.12/3.13 matrix + mypy)
 - **Type checking**: mypy strict mode, all packages pass
@@ -43,7 +43,7 @@ tick-engine/
 | Package | Import | Version | Description |
 |---------|--------|---------|-------------|
 | tick | `tick` | 0.3.0 | Core engine: loop, clock, world, systems, query filters, hooks |
-| tick-colony | `tick_colony` | 0.3.0 | Colony builder / roguelike simulation primitives |
+| tick-colony | `tick_colony` | 0.4.1 | Colony builder / roguelike simulation primitives |
 | tick-schedule | `tick_schedule` | 0.1.0 | Countdown timers and periodic triggers |
 | tick-fsm | `tick_fsm` | 0.2.0 | Declarative finite state machines (hierarchical) |
 | tick-blueprint | `tick_blueprint` | 0.2.0 | Entity template registry (with meta) |
@@ -143,7 +143,7 @@ Extensions depend on `tick>=0.2.1`. tick-colony depends on all 11 extension pack
 
 ```
 tick >= 0.2.1
-  ├── tick-colony >= 0.3.0
+  ├── tick-colony >= 0.4.1
   │     ├── tick-spatial >= 0.2.0
   │     ├── tick-schedule >= 0.1.0
   │     ├── tick-fsm >= 0.1.0
