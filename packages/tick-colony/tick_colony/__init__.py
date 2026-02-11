@@ -46,11 +46,33 @@ from tick_resource import (
     can_craft, craft, make_resource_decay_system,
 )
 
+# Re-export tick-ai
+from tick_ai import (
+    AIManager, BehaviorTree, Blackboard, UtilityAgent,
+    Status, Node, make_bt_system, make_utility_system,
+)
+
+# Re-export tick-llm
+from tick_llm import (
+    LLMAgent, LLMClient, LLMConfig, LLMManager, LLMSystem,
+    MockClient, ContextFn, ParserFn,
+    default_json_parser, strip_code_fences, make_llm_system,
+)
+
+# Colony-specific LLM integration
+from tick_colony.context import (
+    make_resource_context, make_population_context,
+    make_spatial_context, make_event_context, make_colony_context,
+)
+from tick_colony.directive import DirectiveHandler, make_directive_parser
+from tick_colony.pressure import PressureThresholds, make_pressure_system
+
 if TYPE_CHECKING:
     from tick import World
 
 
 def register_colony_components(world: World) -> None:
     for ctype in (Pos2D, Timer, FSM, NeedSet, StatBlock, Modifiers,
-                  Container, ContainedBy, Lifecycle, Inventory):
+                  Container, ContainedBy, Lifecycle, Inventory,
+                  LLMAgent, Blackboard):
         world.register_component(ctype)

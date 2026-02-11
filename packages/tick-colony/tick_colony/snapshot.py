@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from tick import Engine
 
+from tick_ai.components import Blackboard
 from tick_spatial import Pos2D, Grid2D
 from tick_schedule import Timer
 from tick_fsm import FSM
@@ -13,12 +14,17 @@ from tick_colony.events import EventLog
 from tick_event import EventScheduler
 from tick_atlas import CellMap
 from tick_ability import AbilityManager
+from tick_llm.components import LLMAgent
 from tick_resource import Inventory, ResourceRegistry
 from tick_colony.lifecycle import Lifecycle
 from tick_colony.needs import NeedSet
 from tick_colony.stats import Modifiers, StatBlock
 
-_COLONY_COMPONENTS = (Pos2D, Timer, FSM, NeedSet, StatBlock, Modifiers, Container, ContainedBy, Lifecycle, Inventory)
+_COLONY_COMPONENTS = (
+    Pos2D, Timer, FSM, NeedSet, StatBlock, Modifiers,
+    Container, ContainedBy, Lifecycle, Inventory,
+    LLMAgent, Blackboard,
+)
 
 
 class ColonySnapshot:
@@ -57,6 +63,9 @@ class ColonySnapshot:
         for ctype in _COLONY_COMPONENTS:
             engine.world.register_component(ctype)
         engine.restore(data)
+        # In-flight LLM futures are lost on restore; clear pending flags.
+        for _, (agent,) in engine.world.query(LLMAgent):
+            agent.pending = False
         colony = data.get("colony", {})
         if self._grid is not None:
             self._grid.rebuild(engine.world)

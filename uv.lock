@@ -255,16 +255,18 @@ requires-dist = [{ name = "tick", editable = "packages/tick" }]
 
 [[package]]
 name = "tick-colony"
-version = "0.3.0"
+version = "0.4.0"
 source = { editable = "packages/tick-colony" }
 dependencies = [
     { name = "tick" },
     { name = "tick-ability" },
+    { name = "tick-ai" },
     { name = "tick-atlas" },
     { name = "tick-blueprint" },
     { name = "tick-command" },
     { name = "tick-event" },
     { name = "tick-fsm" },
+    { name = "tick-llm" },
     { name = "tick-resource" },
     { name = "tick-schedule" },
     { name = "tick-signal" },
@@ -275,11 +277,13 @@ dependencies = [
 requires-dist = [
     { name = "tick", editable = "packages/tick" },
     { name = "tick-ability", editable = "packages/tick-ability" },
+    { name = "tick-ai", editable = "packages/tick-ai" },
     { name = "tick-atlas", editable = "packages/tick-atlas" },
     { name = "tick-blueprint", editable = "packages/tick-blueprint" },
     { name = "tick-command", editable = "packages/tick-command" },
     { name = "tick-event", editable = "packages/tick-event" },
     { name = "tick-fsm", editable = "packages/tick-fsm" },
+    { name = "tick-llm", editable = "packages/tick-llm" },
     { name = "tick-resource", editable = "packages/tick-resource" },
     { name = "tick-schedule", editable = "packages/tick-schedule" },
     { name = "tick-signal", editable = "packages/tick-signal" },
