@@ -6,7 +6,7 @@ A uv workspace monorepo containing the tick engine and all its extension package
 
 ## Current Status
 
-- **Version**: 0.14.0
+- **Version**: 0.14.1
 - **Tests**: 1544 passing across all 16 packages
 - **CI**: GitHub Actions (Python 3.11/3.12/3.13 matrix + mypy)
 - **Type checking**: mypy strict mode, all packages pass
