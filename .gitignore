@@ -41,3 +41,4 @@ htmlcov/
 .python-version
 
 # NOTE: uv.lock is NOT ignored — committed for reproducible workspace builds
+examples/*/uv.lock

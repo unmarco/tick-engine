@@ -1,6 +1,6 @@
 [project]
 name = "tick-colony"
-version = "0.3.0"
+version = "0.4.0"
 description = "Reusable colony builder / roguelike simulation primitives for the tick engine"
 requires-python = ">=3.11"
 dependencies = [
@@ -15,6 +15,8 @@ dependencies = [
     "tick-atlas>=0.2.0",
     "tick-ability>=0.1.0",
     "tick-resource>=0.1.0",
+    "tick-ai>=0.1.0",
+    "tick-llm>=0.1.0",
 ]
 
 [tool.uv.sources]
@@ -29,6 +31,8 @@ tick-command = { workspace = true }
 tick-atlas = { workspace = true }
 tick-ability = { workspace = true }
 tick-resource = { workspace = true }
+tick-ai = { workspace = true }
+tick-llm = { workspace = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["tick_colony"]
